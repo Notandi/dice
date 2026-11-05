@@ -81,7 +81,7 @@ function describeFaceNumberedDie(die: DieDefinition, faceCount: number, opposite
 
     it(`reads each of 1 to ${faceCount} on exactly one face`, () => {
       const values = die.faces.map((face) => readFace(die, turnTo(face.normal, UP)));
-      expect(values.sort((a, b) => a - b)).toEqual(Array.from({ length: faceCount }, (_, i) => i + 1));
+      expect(values.sort((a, b) => a! - b!)).toEqual(Array.from({ length: faceCount }, (_, i) => i + 1));
     });
 
     it(`has opposite faces printed with numbers adding up to ${oppositeSum}`, () => {
@@ -175,12 +175,45 @@ describe("Face Reader: Units Die", () => {
   });
 });
 
+describe("Face Reader: Cocked", () => {
+  /** Each Die Type resting squarely on each of its faces. */
+  const restingPoses = [d4, d6, d8, d10, d12, d20, tensDie, unitsDie].flatMap((die) =>
+    die.faces.map((face) => ({
+      die,
+      rotation: die === d4 ? turnTo(face.normal, DOWN) : turnTo(face.normal, UP),
+    })),
+  );
+
+  it("reads a Face Value when the top face or corner is just inside 10° of straight up", () => {
+    for (const { die, rotation } of restingPoses) {
+      const tilted = compose(leanBy(9.5), rotation);
+      expect(readFace(die, tilted), die.name).toBe(readFace(die, rotation));
+      expect(readFace(die, tilted), die.name).toBeTypeOf("number");
+    }
+  });
+
+  it("is Cocked when no face or corner is within 10° of straight up", () => {
+    for (const { die, rotation } of restingPoses) {
+      expect(readFace(die, compose(leanBy(10.5), rotation)), die.name).toBeUndefined();
+    }
+  });
+
+  it("is Cocked when a d6 balances on an edge", () => {
+    expect(readFace(d6, axisAngle({ x: 0, y: 0, z: 1 }, Math.PI / 4))).toBeUndefined();
+  });
+});
+
 // --- helpers -------------------------------------------------------------
 
 const UP: Vec3 = { x: 0, y: 1, z: 0 };
 const DOWN: Vec3 = { x: 0, y: -1, z: 0 };
-/** 15° about an axis that is neither vertical nor horizontal. */
-const TILT = axisAngle({ x: 1, y: 0.3, z: 0.5 }, (15 * Math.PI) / 180);
+/** 8° about an axis that is neither vertical nor horizontal: tilted, but not Cocked. */
+const TILT = axisAngle({ x: 1, y: 0.3, z: 0.5 }, (8 * Math.PI) / 180);
+
+/** A lean of `degrees` about a horizontal axis, so whatever pointed straight up ends that far from it. */
+function leanBy(degrees: number): Rotation {
+  return axisAngle({ x: 1, y: 0, z: 0.4 }, (degrees * Math.PI) / 180);
+}
 
 /** The shortest rotation that turns local direction `from` to world direction `to`. */
 function turnTo(from: Vec3, to: Vec3): Rotation {

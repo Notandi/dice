@@ -1,4 +1,4 @@
-import type { DieDefinition } from "../dice/types";
+import type { DieDefinition, Vec3 } from "../dice/types";
 import type { Throw, TrayDimensions } from "./traySimulation";
 
 /** Seconds between waves when there are more dice than lanes. */
@@ -19,6 +19,34 @@ export function autoThrow(tray: TrayDimensions, dice: DieDefinition[]): Throw[] 
     const left = -tray.width / 2 + (i % lanes) * laneWidth;
     return { ...throwOne(tray, die, left, left + laneWidth), delay: Math.floor(i / lanes) * WAVE_GAP };
   });
+}
+
+/** A Die already in the Tray, which a new throw must not start inside. */
+export interface Obstacle {
+  position: Vec3;
+  definition: DieDefinition;
+}
+
+/** Candidate throws tried when looking for a clear start. */
+const RETHROW_TRIES = 12;
+
+/**
+ * Throws one Die again, as {@link autoThrow} would, but starting where it has
+ * the most room from the dice already in the Tray, so it never appears inside one.
+ */
+export function autoRethrow(tray: TrayDimensions, die: DieDefinition, others: readonly Obstacle[]): Throw {
+  const room = (t: Throw) =>
+    Math.min(Infinity, ...others.map((o) => distance(t.position, o.position) - o.definition.radius - die.radius));
+  let best = throwOne(tray, die, -tray.width / 2, tray.width / 2);
+  for (let i = 1; i < RETHROW_TRIES && room(best) < 0; i++) {
+    const candidate = throwOne(tray, die, -tray.width / 2, tray.width / 2);
+    if (room(candidate) > room(best)) best = candidate;
+  }
+  return best;
+}
+
+function distance(a: Vec3, b: Vec3): number {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 /** A throw for one Die starting between `left` and `right` along the near edge. */
