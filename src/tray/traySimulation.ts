@@ -1,5 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { readFace } from "../dice/faceReader";
+import { dot } from "../dice/polyhedron";
 import type { DieDefinition, Rotation, Vec3 } from "../dice/types";
 
 /** Starting position, rotation, velocity and spin for one Die. */
@@ -112,10 +113,8 @@ export class TraySimulation {
         .setAngvel(dieThrow.angularVelocity)
         .setCcdEnabled(true),
     );
-    const half = dieType.edgeLength / 2;
-    const rounding = dieType.edgeLength * 0.08;
     this.world.createCollider(
-      RAPIER.ColliderDesc.roundCuboid(half - rounding, half - rounding, half - rounding, rounding)
+      dieCollider(dieType)
         .setDensity(1)
         .setFriction(0.5)
         .setRestitution(0.35),
@@ -161,4 +160,18 @@ export class TraySimulation {
 
 function length(v: Vec3): number {
   return Math.hypot(v.x, v.y, v.z);
+}
+
+/**
+ * A convex hull of the Die's corners with slightly rounded edges. The hull is
+ * shrunk first so the rounding brings its faces back to their true size.
+ */
+function dieCollider(dieType: DieDefinition): RAPIER.ColliderDesc {
+  const inradius = Math.min(...dieType.faces.map((f) => dot(f.normal, dieType.vertices[f.corners[0]])));
+  const rounding = inradius * 0.12;
+  const shrink = 1 - rounding / inradius;
+  const points = new Float32Array(dieType.vertices.flatMap((v) => [v.x * shrink, v.y * shrink, v.z * shrink]));
+  const desc = RAPIER.ColliderDesc.roundConvexHull(points, rounding);
+  if (!desc) throw new Error(`could not build a collider for ${dieType.name}`);
+  return desc;
 }

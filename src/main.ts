@@ -1,4 +1,4 @@
-import { d6 } from "./dice/d6";
+import { DIE_TYPES } from "./dice/dieTypes";
 import { Renderer } from "./render/renderer";
 import { autoThrow } from "./tray/autoThrower";
 import { TIMESTEP, TraySimulation } from "./tray/traySimulation";
@@ -8,6 +8,11 @@ const MAX_STEPS_PER_FRAME = 10; // don't spiral after a long pause (e.g. a backg
 const canvas = document.querySelector<HTMLCanvasElement>("#tray")!;
 const rollButton = document.querySelector<HTMLButtonElement>("#roll")!;
 const totalEl = document.querySelector<HTMLDivElement>("#total")!;
+const dieTypePicker = document.querySelector<HTMLSelectElement>("#die-type")!;
+
+// Temporary picker for the single Die Type Roll throws; the Hand (#5) replaces it.
+for (const dieType of DIE_TYPES) dieTypePicker.add(new Option(dieType.name, dieType.name, false, dieType.name === "d6"));
+const pickedDieType = () => DIE_TYPES.find((d) => d.name === dieTypePicker.value) ?? DIE_TYPES[0];
 
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
@@ -15,7 +20,8 @@ let rolling = false;
 
 rollButton.addEventListener("click", () => {
   sim.clear();
-  sim.throwDie(d6, autoThrow(sim.tray, d6));
+  const dieType = pickedDieType();
+  sim.throwDie(dieType, autoThrow(sim.tray, dieType));
   rolling = true;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
