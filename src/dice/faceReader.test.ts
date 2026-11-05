@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { d6 } from "./d6";
+import { d4, d6, d8, d10, d12, d20 } from "./dieTypes";
 import { readFace } from "./faceReader";
+import { add, cross, dot, normalize, scale } from "./polyhedron";
+import type { DieDefinition, Face, Rotation, Vec3 } from "./types";
 
 const q = Math.SQRT1_2; // sin(45°) = cos(45°): the quaternion parts of a quarter turn
 
@@ -34,3 +36,153 @@ describe("Face Reader: d6", () => {
     expect(readFace(d6, { x: q, y: 0, z: 0, w: q })).toBe(4);
   });
 });
+
+describe("Face Reader: d4", () => {
+  it("reads the number printed at the top corner, whichever face it rests on", () => {
+    for (const bottom of d4.faces) {
+      const rotation = turnTo(bottom.normal, DOWN);
+      const topCornerLabels = d4.faces
+        .filter((face) => face !== bottom)
+        .map((face) => labelAtCorner(face, topCorner(d4, rotation)));
+
+      expect(new Set(topCornerLabels).size).toBe(1);
+      expect(readFace(d4, rotation)).toBe(Number(topCornerLabels[0]));
+    }
+  });
+
+  it("reads each of 1 to 4 on exactly one corner", () => {
+    const values = d4.faces.map((bottom) => readFace(d4, turnTo(bottom.normal, DOWN)));
+    expect(values.sort()).toEqual([1, 2, 3, 4]);
+  });
+
+  it("still reads the top corner when the d4 is tilted a little", () => {
+    for (const bottom of d4.faces) {
+      const resting = turnTo(bottom.normal, DOWN);
+      expect(readFace(d4, compose(TILT, resting))).toBe(readFace(d4, resting));
+    }
+  });
+});
+
+/** Dice numbered in the centre of each face: d6, d8, d10, d12 and d20. */
+function describeFaceNumberedDie(die: DieDefinition, faceCount: number, oppositeSum: number) {
+  describe(`Face Reader: ${die.name}`, () => {
+    it(`has ${faceCount} faces, each with one number printed in its centre`, () => {
+      expect(die.faces).toHaveLength(faceCount);
+      for (const face of die.faces) {
+        expect(face.labels).toEqual([{ text: expect.any(String), at: "centre" }]);
+      }
+    });
+
+    it("reads the number printed on whichever face points up", () => {
+      for (const face of die.faces) {
+        expect(readFace(die, turnTo(face.normal, UP))).toBe(printedValue(face, faceCount));
+      }
+    });
+
+    it(`reads each of 1 to ${faceCount} on exactly one face`, () => {
+      const values = die.faces.map((face) => readFace(die, turnTo(face.normal, UP)));
+      expect(values.sort((a, b) => a - b)).toEqual(Array.from({ length: faceCount }, (_, i) => i + 1));
+    });
+
+    it(`has opposite faces printed with numbers adding up to ${oppositeSum}`, () => {
+      for (const face of die.faces) {
+        const top = turnTo(face.normal, DOWN);
+        const opposite = die.faces.find((f) => dot(rotate(f.normal, top), UP) > 0.999)!;
+        expect(Number(face.labels[0].text) + Number(opposite.labels[0].text)).toBe(oppositeSum);
+      }
+    });
+
+    it("still reads the top face when the Die is tilted a little", () => {
+      for (const face of die.faces) {
+        const resting = turnTo(face.normal, UP);
+        expect(readFace(die, compose(TILT, resting))).toBe(readFace(die, resting));
+      }
+    });
+  });
+}
+
+describeFaceNumberedDie(d6, 6, 7);
+describeFaceNumberedDie(d8, 8, 9);
+describeFaceNumberedDie(d10, 10, 9);
+describeFaceNumberedDie(d12, 12, 13);
+describeFaceNumberedDie(d20, 20, 21);
+
+describe("Face Reader: d10 zero", () => {
+  it("reads a 0 face as 10", () => {
+    const zero = d10.faces.find((face) => face.labels[0].text === "0")!;
+    expect(readFace(d10, turnTo(zero.normal, UP))).toBe(10);
+  });
+
+  it("is printed 0 to 9", () => {
+    const printed = d10.faces.map((face) => face.labels[0].text).sort();
+    expect(printed).toEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+  });
+});
+
+// --- helpers -------------------------------------------------------------
+
+const UP: Vec3 = { x: 0, y: 1, z: 0 };
+const DOWN: Vec3 = { x: 0, y: -1, z: 0 };
+/** 15° about an axis that is neither vertical nor horizontal. */
+const TILT = axisAngle({ x: 1, y: 0.3, z: 0.5 }, (15 * Math.PI) / 180);
+
+/** The shortest rotation that turns local direction `from` to world direction `to`. */
+function turnTo(from: Vec3, to: Vec3): Rotation {
+  const a = normalize(from);
+  const d = dot(a, to);
+  if (d < -0.999999) {
+    // Half turn about any axis perpendicular to `from`.
+    const axis = Math.abs(a.x) < 0.9 ? cross(a, { x: 1, y: 0, z: 0 }) : cross(a, { x: 0, y: 0, z: 1 });
+    return axisAngle(axis, Math.PI);
+  }
+  const c = cross(a, to);
+  const n = Math.hypot(c.x, c.y, c.z, 1 + d);
+  return { x: c.x / n, y: c.y / n, z: c.z / n, w: (1 + d) / n };
+}
+
+function axisAngle(axis: Vec3, angle: number): Rotation {
+  const a = normalize(axis);
+  const s = Math.sin(angle / 2);
+  return { x: a.x * s, y: a.y * s, z: a.z * s, w: Math.cos(angle / 2) };
+}
+
+/** The rotation that applies `second` after `first`. */
+function compose(second: Rotation, first: Rotation): Rotation {
+  const a = second;
+  const b = first;
+  return {
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+  };
+}
+
+function rotate(v: Vec3, r: Rotation): Vec3 {
+  // v' = v + 2w(u × v) + 2u × (u × v), where u is the vector part of r.
+  const u = { x: r.x, y: r.y, z: r.z };
+  const t = scale(cross(u, v), 2);
+  const rotated = add(add(v, scale(t, r.w)), cross(u, t));
+  return rotated;
+}
+
+/** Index of the vertex that sits highest when the Die has the given rotation. */
+function topCorner(die: DieDefinition, rotation: Rotation): number {
+  let best = 0;
+  die.vertices.forEach((v, i) => {
+    if (dot(rotate(v, rotation), UP) > dot(rotate(die.vertices[best], rotation), UP)) best = i;
+  });
+  return best;
+}
+
+function labelAtCorner(face: Face, corner: number): string {
+  const label = face.labels.find((l) => l.at === corner);
+  if (!label) throw new Error(`face has no label at corner ${corner}`);
+  return label.text;
+}
+
+/** The Face Value printed on a face: its number, except that a 0 reads as the number of faces. */
+function printedValue(face: Face, faceCount: number): number {
+  const n = Number(face.labels[0].text);
+  return n === 0 ? faceCount : n;
+}

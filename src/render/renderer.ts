@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
-import { createD6Mesh } from "./dieMesh";
+import { createDieMesh } from "./dieMesh";
 
 const BASE_FOV = 40;
 
@@ -44,7 +44,7 @@ export class Renderer {
     for (const die of dice) {
       let mesh = this.meshes.get(die);
       if (!mesh) {
-        mesh = createD6Mesh(die.definition);
+        mesh = createDieMesh(die.definition);
         this.meshes.set(die, mesh);
         this.scene.add(mesh);
       }

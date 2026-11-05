@@ -9,12 +9,12 @@ import type { Throw, TrayDimensions } from "./traySimulation";
 export function autoThrow(tray: TrayDimensions, dieType: DieDefinition): Throw {
   const random = Math.random;
   const between = (min: number, max: number) => min + (max - min) * random();
-  const margin = dieType.edgeLength;
+  const margin = dieType.radius + 0.1;
 
   return {
     position: {
       x: between(-tray.width / 2 + margin, tray.width / 2 - margin),
-      y: between(dieType.edgeLength / 2 + 0.1, tray.wallHeight - dieType.edgeLength / 2 - 0.1),
+      y: between(margin, tray.lidHeight - margin),
       z: tray.depth / 2 - margin,
     },
     rotation: randomRotation(random),
