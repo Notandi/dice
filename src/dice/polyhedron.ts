@@ -6,11 +6,11 @@ const EPSILON = 1e-6;
  * How a Die Type is numbered:
  * - "corners": each corner carries a number, printed beside it on every face
  *   that meets there, and the Die is read at the corner pointing up (the d4).
- * - faces: each face carries one number in its centre. Opposite faces add up
- *   to `oppositeSum`, and numbers run up from `firstLabel`. A face printed 0
- *   reads as the number of faces (a plain d10).
+ * - faces: each face carries one number in its centre. Faces are numbered
+ *   from the top down with `labels`, and each opposite face takes the rest
+ *   of `oppositeSum`. A face printed 0 reads as the number of faces (a plain d10).
  */
-export type Numbering = "corners" | { firstLabel: number; oppositeSum: number };
+export type Numbering = "corners" | { labels: number[]; oppositeSum: number };
 
 export interface DieSpec {
   name: string;
@@ -60,22 +60,23 @@ interface FaceShape {
 /**
  * Numbers faces in opposite pairs. Faces are visited from the top down
  * (then +X first, then +Z first); each face not yet numbered takes the next
- * label and its opposite face takes the remainder of `oppositeSum`.
+ * of `labels` and its opposite face takes the rest of `oppositeSum`.
  */
 function numberOppositePairs(
   shapes: FaceShape[],
-  { firstLabel, oppositeSum }: { firstLabel: number; oppositeSum: number },
+  { labels: handOut, oppositeSum }: { labels: number[]; oppositeSum: number },
 ): number[] {
   const labels: (number | undefined)[] = shapes.map(() => undefined);
   const order = shapes.map((_, i) => i).sort((a, b) => compareTopDown(shapes[a].normal, shapes[b].normal));
-  let next = firstLabel;
+  const queue = [...handOut];
   for (const i of order) {
     if (labels[i] !== undefined) continue;
     const opposite = shapes.findIndex((s) => dot(s.normal, shapes[i].normal) < -1 + EPSILON);
+    const label = queue.shift();
     if (opposite < 0) throw new Error("face has no opposite face");
-    labels[i] = next;
-    labels[opposite] = oppositeSum - next;
-    next++;
+    if (label === undefined) throw new Error("not enough labels for every pair of faces");
+    labels[i] = label;
+    labels[opposite] = oppositeSum - label;
   }
   return labels as number[];
 }

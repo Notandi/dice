@@ -25,7 +25,7 @@ export const d6 = buildDie({
   inkColour: "#1d2433",
   vertices: [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => ({ x, y, z })))),
   radius: Math.sqrt(3) / 2,
-  numbering: { firstLabel: 1, oppositeSum: 7 },
+  numbering: { labels: [1, 2, 3], oppositeSum: 7 },
 });
 
 /** Octahedron. Opposite faces add up to 9. */
@@ -42,11 +42,12 @@ export const d8 = buildDie({
     { x: 0, y: 0, z: -1 },
   ],
   radius: 0.85,
-  numbering: { firstLabel: 1, oppositeSum: 9 },
+  numbering: { labels: [1, 2, 3, 4], oppositeSum: 9 },
 });
 
 /**
- * Pentagonal trapezohedron, poles on the Y axis, printed 0 to 9. Opposite
+ * Pentagonal trapezohedron, poles on the Y axis, printed 0 to 9. Like a real
+ * d10, the odd numbers meet at one pole and the even at the other, opposite
  * faces add up to 9, and a 0 reads as 10.
  */
 export const d10 = buildDie({
@@ -55,7 +56,7 @@ export const d10 = buildDie({
   inkColour: "#1d2433",
   vertices: trapezohedronVertices(5),
   radius: 0.85,
-  numbering: { firstLabel: 0, oppositeSum: 9 },
+  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9 },
 });
 
 /** Dodecahedron. Opposite faces add up to 13. */
@@ -68,7 +69,7 @@ export const d12 = buildDie({
     ...cyclicPermutations(1 / PHI, PHI),
   ],
   radius: 0.9,
-  numbering: { firstLabel: 1, oppositeSum: 13 },
+  numbering: { labels: [1, 2, 3, 4, 5, 6], oppositeSum: 13 },
 });
 
 /** Icosahedron. Opposite faces add up to 21. */
@@ -78,7 +79,7 @@ export const d20 = buildDie({
   inkColour: "#ffffff",
   vertices: cyclicPermutations(1, PHI),
   radius: 0.95,
-  numbering: { firstLabel: 1, oppositeSum: 21 },
+  numbering: { labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], oppositeSum: 21 },
 });
 
 /** Every Die Type a single Die can be, in picker order. */

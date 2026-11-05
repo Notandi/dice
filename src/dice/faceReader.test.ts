@@ -107,7 +107,7 @@ describeFaceNumberedDie(d10, 10, 9);
 describeFaceNumberedDie(d12, 12, 13);
 describeFaceNumberedDie(d20, 20, 21);
 
-describe("Face Reader: d10 zero", () => {
+describe("Face Reader: d10", () => {
   it("reads a 0 face as 10", () => {
     const zero = d10.faces.find((face) => face.labels[0].text === "0")!;
     expect(readFace(d10, turnTo(zero.normal, UP))).toBe(10);
@@ -116,6 +116,15 @@ describe("Face Reader: d10 zero", () => {
   it("is printed 0 to 9", () => {
     const printed = d10.faces.map((face) => face.labels[0].text).sort();
     expect(printed).toEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+  });
+
+  it("has the odd numbers around one pole and the even numbers around the other", () => {
+    const facesAt = (corner: number) => d10.faces.filter((f) => f.corners.includes(corner));
+    const poles = d10.vertices.map((_, i) => i).filter((i) => facesAt(i).length === 5);
+    const parityAround = (corner: number) => [...new Set(facesAt(corner).map((f) => Number(f.labels[0].text) % 2))];
+
+    expect(poles).toHaveLength(2);
+    expect(poles.map(parityAround)).toEqual(expect.arrayContaining([[0], [1]]));
   });
 });
 
