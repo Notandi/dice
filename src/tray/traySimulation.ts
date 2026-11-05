@@ -9,7 +9,7 @@ export interface Throw {
   rotation: Rotation;
   linearVelocity: Vec3;
   angularVelocity: Vec3;
-  /** Seconds after the throw starts before this Die enters the Tray. 0 if left out. */
+  /** Seconds after the Roll starts before this Die enters the Tray. 0 if left out. */
   delay?: number;
 }
 
@@ -48,22 +48,30 @@ export interface TrayDie {
 
 class SimulatedDie implements TrayDie {
   private stillFor = 0;
-  /** Set once the Die has entered the Tray, after its throw's delay. */
-  body: RAPIER.RigidBody | undefined;
+  /** Physics steps left before the Die enters the Tray. */
+  private stepsToEnter: number;
+  /** Set once the Die has entered the Tray, after its Throw's delay. */
+  private body: RAPIER.RigidBody | undefined;
 
   constructor(
     readonly definition: DieDefinition,
-    readonly dieThrow: Throw,
-    /** Physics steps left before the Die enters the Tray. */
-    public stepsToEnter: number,
-  ) {}
+    private readonly dieThrow: Throw,
+    private readonly world: RAPIER.World,
+  ) {
+    this.stepsToEnter = Math.round((dieThrow.delay ?? 0) / TIMESTEP);
+    if (this.stepsToEnter === 0) this.enter();
+  }
+
+  get inTray(): boolean {
+    return this.body !== undefined;
+  }
 
   get position(): Vec3 {
-    return this.inTray().translation();
+    return this.enteredBody().translation();
   }
 
   get rotation(): Rotation {
-    return this.inTray().rotation();
+    return this.enteredBody().rotation();
   }
 
   get atRest(): boolean {
@@ -74,14 +82,39 @@ class SimulatedDie implements TrayDie {
     return readFace(this.definition, this.rotation);
   }
 
-  /** Called once per physics step. */
-  trackRest(): void {
-    const body = this.inTray();
-    const still = length(body.linvel()) < REST_SPEED && length(body.angvel()) < REST_SPEED;
+  /** Called once per physics step: counts down to entering the Tray, then tracks rest. */
+  step(): void {
+    if (!this.body) {
+      if (--this.stepsToEnter <= 0) this.enter();
+      return;
+    }
+    const still = length(this.body.linvel()) < REST_SPEED && length(this.body.angvel()) < REST_SPEED;
     this.stillFor = still ? this.stillFor + TIMESTEP : 0;
   }
 
-  private inTray(): RAPIER.RigidBody {
+  /** Takes the Die out of the world, whether or not it has entered the Tray. */
+  remove(): void {
+    if (this.body) this.world.removeRigidBody(this.body);
+  }
+
+  /** Creates the Die's body at its Throw's starting pose and velocity. */
+  private enter(): void {
+    const { position, rotation, linearVelocity, angularVelocity } = this.dieThrow;
+    this.body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(position.x, position.y, position.z)
+        .setRotation(rotation)
+        .setLinvel(linearVelocity.x, linearVelocity.y, linearVelocity.z)
+        .setAngvel(angularVelocity)
+        .setCcdEnabled(true),
+    );
+    this.world.createCollider(
+      dieCollider(this.definition).setDensity(1).setFriction(0.5).setRestitution(0.35),
+      this.body,
+    );
+  }
+
+  private enteredBody(): RAPIER.RigidBody {
     if (!this.body) throw new Error(`${this.definition.name} has not entered the Tray yet`);
     return this.body;
   }
@@ -108,7 +141,7 @@ export class TraySimulation {
 
   /** The dice that have entered the Tray; a delayed throw's Die joins once its delay is up. */
   get trayDice(): readonly TrayDie[] {
-    return this.dice.filter((d) => d.body);
+    return this.dice.filter((d) => d.inTray);
   }
 
   /** True once there is at least one Die and every Die has entered the Tray and come to rest. */
@@ -121,42 +154,21 @@ export class TraySimulation {
    * returned Die only appears in {@link trayDice} once it has entered.
    */
   throwDie(dieType: DieDefinition, dieThrow: Throw): TrayDie {
-    const die = new SimulatedDie(dieType, dieThrow, Math.round((dieThrow.delay ?? 0) / TIMESTEP));
+    const die = new SimulatedDie(dieType, dieThrow, this.world);
     this.dice.push(die);
-    if (die.stepsToEnter === 0) this.enter(die);
     return die;
   }
 
   /** Removes every Die from the Tray. */
   clear(): void {
-    for (const die of this.dice) if (die.body) this.world.removeRigidBody(die.body);
+    for (const die of this.dice) die.remove();
     this.dice = [];
   }
 
   /** Advances the world by one fixed TIMESTEP. */
   step(): void {
     this.world.step();
-    for (const die of this.dice) {
-      if (die.body) die.trackRest();
-      else if (--die.stepsToEnter <= 0) this.enter(die);
-    }
-  }
-
-  /** Creates the Die's body at its throw's starting pose and velocity. */
-  private enter(die: SimulatedDie): void {
-    const { position, rotation, linearVelocity, angularVelocity } = die.dieThrow;
-    die.body = this.world.createRigidBody(
-      RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(position.x, position.y, position.z)
-        .setRotation(rotation)
-        .setLinvel(linearVelocity.x, linearVelocity.y, linearVelocity.z)
-        .setAngvel(angularVelocity)
-        .setCcdEnabled(true),
-    );
-    this.world.createCollider(
-      dieCollider(die.definition).setDensity(1).setFriction(0.5).setRestitution(0.35),
-      die.body,
-    );
+    for (const die of this.dice) die.step();
   }
 
   private buildTray(): void {

@@ -47,6 +47,8 @@ export function parseNotation(text: string): ParseResult {
       return error(`Couldn't read "${rest}". Join dice and numbers with + or -.`);
     }
 
+    const noDieType = /^\d*d(?!\d|%)/i.exec(rest);
+    if (noDieType) return error(`"${noDieType[0]}" needs a Die Type after the d, like ${noDieType[0]}6.`);
     const match = TERM.exec(rest);
     if (!match) return error(`Couldn't read "${rest}". Write dice like 2d6, or a number like 3.`);
     const [whole, count, sides, modifier] = match;
@@ -91,7 +93,7 @@ export function addDie(plan: RollPlan, dieType: RolledDieType): RollPlan {
     terms[group] = { ...term, count: term.count + 1 };
   } else {
     const afterLastDice = terms.reduce((at, t, i) => (t.kind === "dice" ? i + 1 : at), 0);
-    terms.splice(afterLastDice, 0,{ kind: "dice", sign: 1, count: 1, dieType });
+    terms.splice(afterLastDice, 0, { kind: "dice", sign: 1, count: 1, dieType });
   }
   return { terms };
 }

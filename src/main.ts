@@ -18,7 +18,7 @@ const breakdownEl = $("#breakdown");
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
 
-/** The Hand as drawn at the near edge; hidden once thrown, until it changes again. */
+/** The Hand as drawn at the near edge; hidden while its Roll is being thrown. */
 let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
@@ -38,7 +38,6 @@ const hand = new HandControls(
 );
 
 rollButton.addEventListener("click", () => {
-  if (rollButton.disabled) return;
   const plan = hand.plan;
   const dice = diceToThrow(plan);
   sim.clear();
@@ -83,6 +82,7 @@ function frame(now: number) {
     totalEl.textContent = String(result.total);
     totalEl.classList.remove("pending");
     breakdownEl.textContent = formatBreakdown(result.breakdown);
+    handShown = true; // ready to throw again
   }
 
   renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND);

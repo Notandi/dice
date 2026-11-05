@@ -49,7 +49,7 @@ export class HandControls {
 
   private add(next: RollPlan): void {
     const refused = refusal(next);
-    if (refused) this.showError(refused);
+    if (refused) this.showError(`${refused} The Hand wasn't changed.`);
     else this.replace(next, true);
   }
 

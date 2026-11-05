@@ -36,19 +36,19 @@ export function diceToThrow(plan: RollPlan): DieDefinition[] {
  * Face Value per Die, in the order of {@link diceToThrow}.
  */
 export function rollResult(plan: RollPlan, faceValues: number[]): RollResult {
-  let next = 0;
+  let faceIndex = 0;
   const breakdown = plan.terms.map((term): BreakdownPart => {
     if (term.kind === "modifier") return term;
     const values = Array.from({ length: term.count }, () => {
       const perDie = term.dieType.dice.length;
-      const value = term.dieType.combine(faceValues.slice(next, next + perDie));
-      next += perDie;
+      const value = term.dieType.combine(faceValues.slice(faceIndex, faceIndex + perDie));
+      faceIndex += perDie;
       return value;
     });
     return { kind: "dice", sign: term.sign, notation: `${term.count}${term.dieType.name}`, values };
   });
   const total = breakdown.reduce(
-    (sum, part) => sum + (part.kind === "modifier" ? part.value : part.sign * part.values.reduce((a, b) => a + b, 0)),
+    (running, part) => running + (part.kind === "modifier" ? part.value : part.sign * part.values.reduce((a, b) => a + b, 0)),
     0,
   );
   return { total, breakdown };
