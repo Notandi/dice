@@ -1,5 +1,5 @@
 import { buildDie } from "./polyhedron";
-import type { Vec3 } from "./types";
+import type { DieDefinition, Vec3 } from "./types";
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 
@@ -59,6 +59,32 @@ export const d10 = buildDie({
   numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9 },
 });
 
+/**
+ * The Tens Die of a d100: a d10 printed 00 to 90, giving the tens digit.
+ * A 00 reads as 0.
+ */
+export const tensDie = buildDie({
+  name: "d100 Tens Die",
+  colour: "#1f7a6d",
+  inkColour: "#ffffff",
+  vertices: trapezohedronVertices(5),
+  radius: 0.85,
+  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9, print: (n) => `${n}0`, value: (n) => n * 10 },
+});
+
+/**
+ * The Units Die of a d100: a d10 printed 0 to 9, giving the ones digit.
+ * A 0 reads as 0. Paler than the Tens Die so the pair can be told apart.
+ */
+export const unitsDie = buildDie({
+  name: "d100 Units Die",
+  colour: "#8fd6c9",
+  inkColour: "#1d2433",
+  vertices: trapezohedronVertices(5),
+  radius: 0.85,
+  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9, value: (n) => n },
+});
+
 /** Dodecahedron. Opposite faces add up to 13. */
 export const d12 = buildDie({
   name: "d12",
@@ -84,6 +110,34 @@ export const d20 = buildDie({
 
 /** Every Die Type a single Die can be, in picker order. */
 export const DIE_TYPES = [d4, d6, d8, d10, d12, d20];
+
+/**
+ * A Die Type as a Roll asks for it: the dice thrown for it and how their
+ * Face Values combine into one value.
+ */
+export interface RolledDieType {
+  name: string;
+  dice: DieDefinition[];
+  combine(faceValues: number[]): number;
+}
+
+/** A d100, thrown as a Tens Die and a Units Die together. */
+export const d100: RolledDieType = {
+  name: "d100",
+  dice: [tensDie, unitsDie],
+  combine: ([tens, units]) => percentile(tens, units),
+};
+
+/** Every Die Type a Roll can ask for, in picker order. */
+export const ROLLED_DIE_TYPES: RolledDieType[] = [
+  ...DIE_TYPES.map((die) => ({ name: die.name, dice: [die], combine: ([value]: number[]) => value })),
+  d100,
+];
+
+/** Tens + units, where 00 with 0 reads as 100. */
+function percentile(tens: number, units: number): number {
+  return tens + units === 0 ? 100 : tens + units;
+}
 
 /**
  * Corners of an n-sided trapezohedron: two poles and two zig-zag rings of n
