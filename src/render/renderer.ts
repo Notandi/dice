@@ -2,6 +2,8 @@ import * as THREE from "three";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
 import { createD6Mesh } from "./dieMesh";
 
+const BASE_FOV = 40;
+
 /**
  * Draws the Tray from a fixed angled camera. It only reads Die poses from
  * the Tray simulation; it never drives the physics.
@@ -9,7 +11,7 @@ import { createD6Mesh } from "./dieMesh";
 export class Renderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  private readonly camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 100);
   private readonly meshes = new Map<TrayDie, THREE.Mesh>();
 
   constructor(
@@ -60,7 +62,7 @@ export class Renderer {
     this.camera.aspect = w / h;
     // Keep the whole Tray in view on narrow (portrait) screens too.
     const trayAspect = (this.tray.width + 2) / (this.tray.depth + 4);
-    this.camera.fov = this.camera.aspect < trayAspect ? 40 * (trayAspect / this.camera.aspect) : 40;
+    this.camera.fov = this.camera.aspect < trayAspect ? BASE_FOV * (trayAspect / this.camera.aspect) : BASE_FOV;
     this.camera.updateProjectionMatrix();
   }
 
@@ -70,11 +72,11 @@ export class Renderer {
     sun.position.set(-4, 12, 6);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    const s = sun.shadow.camera;
-    s.left = -8;
-    s.right = 8;
-    s.top = 8;
-    s.bottom = -8;
+    const shadowCamera = sun.shadow.camera;
+    shadowCamera.left = -8;
+    shadowCamera.right = 8;
+    shadowCamera.top = 8;
+    shadowCamera.bottom = -8;
     this.scene.add(sun);
   }
 

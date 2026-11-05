@@ -21,6 +21,6 @@ export interface Face {
 export interface DieDefinition {
   name: string;
   /** Edge length of the Die, in Tray units. */
-  size: number;
+  edgeLength: number;
   faces: Face[];
 }

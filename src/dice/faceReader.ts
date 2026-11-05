@@ -4,10 +4,10 @@ import type { DieDefinition, Rotation, Vec3 } from "./types";
  * Returns the Face Value of the face pointing most nearly straight up
  * (world +Y) when the Die rests with the given rotation.
  */
-export function readFace(die: DieDefinition, rotation: Rotation): number {
-  let best = die.faces[0];
+export function readFace(dieType: DieDefinition, rotation: Rotation): number {
+  let best = dieType.faces[0];
   let bestUp = -Infinity;
-  for (const face of die.faces) {
+  for (const face of dieType.faces) {
     const up = worldUpComponent(face.normal, rotation);
     if (up > bestUp) {
       bestUp = up;

@@ -1,5 +1,4 @@
 import { d6 } from "./dice/d6";
-import { readFace } from "./dice/faceReader";
 import { Renderer } from "./render/renderer";
 import { autoThrow } from "./tray/autoThrower";
 import { TIMESTEP, TraySimulation } from "./tray/traySimulation";
@@ -39,7 +38,7 @@ function frame(now: number) {
 
   if (rolling && sim.allAtRest) {
     rolling = false;
-    const total = sim.trayDice.reduce((sum, die) => sum + readFace(die.definition, die.rotation), 0);
+    const total = sim.trayDice.reduce((total, die) => total + die.faceValue, 0);
     totalEl.textContent = String(total);
     totalEl.classList.remove("pending");
   }

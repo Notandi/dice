@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { readFace } from "../dice/faceReader";
 import type { DieDefinition, Rotation, Vec3 } from "../dice/types";
 
 /** Starting position, rotation, velocity and spin for one Die. */
@@ -38,6 +39,8 @@ export interface TrayDie {
   readonly position: Vec3;
   readonly rotation: Rotation;
   readonly atRest: boolean;
+  /** The Face Value of the uppermost face, as the Face Reader sees it now. */
+  readonly faceValue: number;
 }
 
 class SimulatedDie implements TrayDie {
@@ -58,6 +61,10 @@ class SimulatedDie implements TrayDie {
 
   get atRest(): boolean {
     return this.stillFor >= REST_TIME;
+  }
+
+  get faceValue(): number {
+    return readFace(this.definition, this.rotation);
   }
 
   /** Called once per physics step. */
@@ -82,9 +89,9 @@ export class TraySimulation {
     this.buildTray();
   }
 
-  static async create(tray: TrayDimensions = TRAY): Promise<TraySimulation> {
+  static async create(): Promise<TraySimulation> {
     await RAPIER.init();
-    return new TraySimulation(tray);
+    return new TraySimulation(TRAY);
   }
 
   get trayDice(): readonly TrayDie[] {
@@ -96,17 +103,17 @@ export class TraySimulation {
     return this.dice.length > 0 && this.dice.every((d) => d.atRest);
   }
 
-  throwDie(definition: DieDefinition, t: Throw): TrayDie {
+  throwDie(dieType: DieDefinition, dieThrow: Throw): TrayDie {
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(t.position.x, t.position.y, t.position.z)
-        .setRotation(t.rotation)
-        .setLinvel(t.linearVelocity.x, t.linearVelocity.y, t.linearVelocity.z)
-        .setAngvel(t.angularVelocity)
+        .setTranslation(dieThrow.position.x, dieThrow.position.y, dieThrow.position.z)
+        .setRotation(dieThrow.rotation)
+        .setLinvel(dieThrow.linearVelocity.x, dieThrow.linearVelocity.y, dieThrow.linearVelocity.z)
+        .setAngvel(dieThrow.angularVelocity)
         .setCcdEnabled(true),
     );
-    const half = definition.size / 2;
-    const rounding = definition.size * 0.08;
+    const half = dieType.edgeLength / 2;
+    const rounding = dieType.edgeLength * 0.08;
     this.world.createCollider(
       RAPIER.ColliderDesc.roundCuboid(half - rounding, half - rounding, half - rounding, rounding)
         .setDensity(1)
@@ -114,7 +121,7 @@ export class TraySimulation {
         .setRestitution(0.35),
       body,
     );
-    const die = new SimulatedDie(definition, body);
+    const die = new SimulatedDie(dieType, body);
     this.dice.push(die);
     return die;
   }
@@ -133,7 +140,7 @@ export class TraySimulation {
 
   private buildTray(): void {
     const { width, depth, lidHeight } = this.tray;
-    const t = WALL_THICKNESS / 2;
+    const t = WALL_THICKNESS / 2; // half thickness
     const surface = (desc: RAPIER.ColliderDesc) =>
       this.world.createCollider(desc.setFriction(0.6).setRestitution(0.4));
 

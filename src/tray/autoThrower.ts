@@ -6,18 +6,15 @@ import type { Throw, TrayDimensions } from "./traySimulation";
  * far wall, with random aim, force and spin. Randomness only shapes the throw,
  * never the Face Value (ADR 0001).
  */
-export function autoThrow(
-  tray: TrayDimensions,
-  die: DieDefinition,
-  random: () => number = Math.random,
-): Throw {
+export function autoThrow(tray: TrayDimensions, dieType: DieDefinition): Throw {
+  const random = Math.random;
   const between = (min: number, max: number) => min + (max - min) * random();
-  const margin = die.size;
+  const margin = dieType.edgeLength;
 
   return {
     position: {
       x: between(-tray.width / 2 + margin, tray.width / 2 - margin),
-      y: between(die.size / 2 + 0.1, tray.wallHeight - die.size / 2 - 0.1),
+      y: between(dieType.edgeLength / 2 + 0.1, tray.wallHeight - dieType.edgeLength / 2 - 0.1),
       z: tray.depth / 2 - margin,
     },
     rotation: randomRotation(random),

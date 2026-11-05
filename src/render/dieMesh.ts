@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { DieDefinition } from "../dice/types";
 
 /** three.js BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z. */
-const BOX_SIDES = [
+const BOX_FACE_DIRECTIONS = [
   { x: 1, y: 0, z: 0 },
   { x: -1, y: 0, z: 0 },
   { x: 0, y: 1, z: 0 },
@@ -15,18 +15,18 @@ const FACE_COLOUR = "#f4efe3";
 const INK_COLOUR = "#1d2433";
 
 /** A cube mesh with each face's number taken from the Die definition. */
-export function createD6Mesh(die: DieDefinition): THREE.Mesh {
-  const materials = BOX_SIDES.map((side) => {
-    const face = die.faces.find(
-      (f) => f.normal.x === side.x && f.normal.y === side.y && f.normal.z === side.z,
+export function createD6Mesh(dieType: DieDefinition): THREE.Mesh {
+  const materials = BOX_FACE_DIRECTIONS.map((direction) => {
+    const face = dieType.faces.find(
+      (f) => f.normal.x === direction.x && f.normal.y === direction.y && f.normal.z === direction.z,
     );
-    if (!face) throw new Error(`${die.name} has no face on side ${JSON.stringify(side)}`);
+    if (!face) throw new Error(`${dieType.name} has no face pointing ${JSON.stringify(direction)}`);
     return new THREE.MeshStandardMaterial({
       map: numberTexture(face.value),
       roughness: 0.45,
     });
   });
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(die.size, die.size, die.size), materials);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(dieType.edgeLength, dieType.edgeLength, dieType.edgeLength), materials);
   mesh.castShadow = true;
   return mesh;
 }
