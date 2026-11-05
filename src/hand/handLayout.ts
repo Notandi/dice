@@ -45,6 +45,17 @@ export function handLayout(tray: TrayDimensions, dice: DieDefinition[]): HandPos
   });
 }
 
+/** Extra floor around the Hand that still counts as grabbing it, for fingertips. */
+const GRAB_MARGIN = 0.5;
+
+/** Whether a point on the Tray floor is on or right beside the Hand, so pressing there picks it up. */
+export function handContains(hand: readonly HandPose[], point: Vec3): boolean {
+  return hand.some((pose) => {
+    const reach = (CELL * pose.scale) / 2 + GRAB_MARGIN;
+    return Math.abs(point.x - pose.position.x) <= reach && Math.abs(point.z - pose.position.z) <= reach;
+  });
+}
+
 /** The number of columns that lets `count` dice be drawn largest within the Hand's strip. */
 function bestGrid(tray: TrayDimensions, count: number): { columns: number; scale: number } {
   let best = { columns: 1, scale: 0 };
