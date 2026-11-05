@@ -1,17 +1,23 @@
 import type { DieDefinition } from "../dice/types";
 import type { Throw, TrayDimensions } from "./traySimulation";
 
+/** Seconds between waves when there are more dice than lanes. */
+const WAVE_GAP = 0.2;
+
 /**
  * The automatic Thrower: throws dice from the near edge of the Tray towards
  * the far wall, with random aim, force and spin. Each Die starts in its own
- * lane across the near edge so no two start overlapping. Randomness only
- * shapes the throw, never the Face Value (ADR 0001).
+ * lane across the near edge so no two start overlapping; when there are more
+ * dice than lanes, the rest follow in quick waves. Randomness only shapes the
+ * throw, never the Face Value (ADR 0001).
  */
 export function autoThrow(tray: TrayDimensions, dice: DieDefinition[]): Throw[] {
-  const laneWidth = tray.width / dice.length;
+  const widest = Math.max(...dice.map((d) => d.radius));
+  const lanes = Math.max(1, Math.min(dice.length, Math.floor(tray.width / (2 * widest + 0.2))));
+  const laneWidth = tray.width / lanes;
   return dice.map((die, i) => {
-    const left = -tray.width / 2 + i * laneWidth;
-    return throwOne(tray, die, left, left + laneWidth);
+    const left = -tray.width / 2 + (i % lanes) * laneWidth;
+    return { ...throwOne(tray, die, left, left + laneWidth), delay: Math.floor(i / lanes) * WAVE_GAP };
   });
 }
 

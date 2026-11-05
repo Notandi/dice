@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { HandPose } from "../hand/handLayout";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
 import { createDieMesh } from "./dieMesh";
 
@@ -13,6 +14,8 @@ export class Renderer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 100);
   private readonly meshes = new Map<TrayDie, THREE.Mesh>();
+  private readonly handGroup = new THREE.Group();
+  private drawnHand: readonly HandPose[] = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -29,12 +32,17 @@ export class Renderer {
 
     this.addLights();
     this.addTray();
+    this.scene.add(this.handGroup);
     this.resize();
     window.addEventListener("resize", () => this.resize());
   }
 
-  /** Keeps one mesh per Die in the Tray and copies each Die's pose onto it. */
-  render(dice: readonly TrayDie[]): void {
+  /**
+   * Keeps one mesh per Die in the Tray and copies each Die's pose onto it,
+   * and draws the Hand waiting at the near edge.
+   */
+  render(dice: readonly TrayDie[], hand: readonly HandPose[]): void {
+    if (hand !== this.drawnHand) this.drawHand(hand);
     for (const [die, mesh] of this.meshes) {
       if (!dice.includes(die)) {
         this.scene.remove(mesh);
@@ -54,6 +62,18 @@ export class Renderer {
       mesh.quaternion.set(q.x, q.y, q.z, q.w);
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private drawHand(hand: readonly HandPose[]): void {
+    this.handGroup.clear();
+    for (const pose of hand) {
+      const mesh = createDieMesh(pose.definition);
+      mesh.position.set(pose.position.x, pose.position.y, pose.position.z);
+      mesh.quaternion.set(pose.rotation.x, pose.rotation.y, pose.rotation.z, pose.rotation.w);
+      mesh.scale.setScalar(pose.scale);
+      this.handGroup.add(mesh);
+    }
+    this.drawnHand = hand;
   }
 
   private resize(): void {

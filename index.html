@@ -9,10 +9,28 @@
   <body>
     <canvas id="tray"></canvas>
     <div id="overlay">
-      <div id="total" aria-live="polite">–</div>
-      <!-- Temporary: picks the single Die Type Roll throws, until the Hand (#5). -->
-      <select id="die-type" aria-label="Die Type"></select>
-      <button id="roll" type="button">Roll</button>
+      <div id="result" aria-live="polite">
+        <div id="total">–</div>
+        <div id="breakdown"></div>
+      </div>
+      <div id="hand-controls">
+        <div id="die-buttons" role="group" aria-label="Add a Die to the Hand"></div>
+        <div id="notation-row">
+          <input
+            id="notation"
+            type="text"
+            placeholder="e.g. 1d20+1d4+3"
+            aria-label="Dice Notation"
+            aria-describedby="notation-error"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+          <button id="clear" type="button">Clear</button>
+          <button id="roll" type="button" disabled>Roll</button>
+        </div>
+        <div id="notation-error" role="alert"></div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
