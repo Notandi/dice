@@ -3,11 +3,12 @@ import { handLayout, type HandPose } from "./hand/handLayout";
 import type { RollPlan } from "./notation/diceNotation";
 import { Renderer } from "./render/renderer";
 import { diceNeeded, diceToThrow, rollResult, type BreakdownPart } from "./roll/roll";
-import { autoThrow } from "./tray/autoThrower";
+import { autoRethrow, autoThrow } from "./tray/autoThrower";
 import { TIMESTEP, TraySimulation, type TrayDie } from "./tray/traySimulation";
 
 const MAX_STEPS_PER_FRAME = 10; // don't spiral after a long pause (e.g. a background tab)
 const NO_HAND: readonly HandPose[] = [];
+const COCKED_HINT = "Cocked! Click a highlighted Die to re-throw it.";
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const canvas = $<HTMLCanvasElement>("#tray");
@@ -49,6 +50,17 @@ rollButton.addEventListener("click", () => {
   breakdownEl.textContent = "";
 });
 
+// Clicking a Cocked Die re-throws just that Die; the others stay where they are.
+canvas.addEventListener("click", (event) => {
+  const die = renderer.dieAt(event.clientX, event.clientY);
+  if (!rolling || !die?.cocked) return;
+  const others = sim.trayDice.filter((other) => other !== die);
+  sim.rethrowDie(die, autoRethrow(sim.tray, die.definition, others));
+});
+canvas.addEventListener("pointermove", (event) => {
+  canvas.style.cursor = renderer.dieAt(event.clientX, event.clientY)?.cocked ? "pointer" : "";
+});
+
 /** e.g. `1d20 (14) + 2d6 (3, 5) − 1` */
 function formatBreakdown(parts: BreakdownPart[]): string {
   return parts
@@ -77,12 +89,20 @@ function frame(now: number) {
   if (steps === MAX_STEPS_PER_FRAME) accumulator = 0;
 
   if (rolling && sim.allAtRest) {
-    const result = rollResult(rolling.plan, rolling.dice.map((die) => die.faceValue));
-    rolling = undefined;
-    totalEl.textContent = String(result.total);
-    totalEl.classList.remove("pending");
-    breakdownEl.textContent = formatBreakdown(result.breakdown);
-    handShown = true; // ready to throw again
+    const faceValues = rolling.dice.map((die) => die.faceValue);
+    if (faceValues.every((value) => value !== undefined)) {
+      const result = rollResult(rolling.plan, faceValues);
+      rolling = undefined;
+      totalEl.textContent = String(result.total);
+      totalEl.classList.remove("pending");
+      breakdownEl.textContent = formatBreakdown(result.breakdown);
+      handShown = true; // ready to throw again
+    } else {
+      // The Total stays pending until every Cocked Die is re-thrown.
+      breakdownEl.textContent = COCKED_HINT;
+    }
+  } else if (breakdownEl.textContent === COCKED_HINT) {
+    breakdownEl.textContent = "";
   }
 
   renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND);

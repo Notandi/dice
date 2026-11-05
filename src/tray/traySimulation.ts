@@ -42,24 +42,25 @@ export interface TrayDie {
   readonly position: Vec3;
   readonly rotation: Rotation;
   readonly atRest: boolean;
-  /** The Face Value of the uppermost face, as the Face Reader sees it now. */
-  readonly faceValue: number;
+  /** The Face Value of the uppermost face, as the Face Reader sees it now; undefined while Cocked. */
+  readonly faceValue: number | undefined;
+  /** At rest with no face clearly uppermost, so it must be re-thrown. */
+  readonly cocked: boolean;
 }
 
 class SimulatedDie implements TrayDie {
   private stillFor = 0;
   /** Physics steps left before the Die enters the Tray. */
-  private stepsToEnter: number;
+  private stepsToEnter = 0;
   /** Set once the Die has entered the Tray, after its Throw's delay. */
   private body: RAPIER.RigidBody | undefined;
 
   constructor(
     readonly definition: DieDefinition,
-    private readonly dieThrow: Throw,
+    private dieThrow: Throw,
     private readonly world: RAPIER.World,
   ) {
-    this.stepsToEnter = Math.round((dieThrow.delay ?? 0) / TIMESTEP);
-    if (this.stepsToEnter === 0) this.enter();
+    this.rethrow(dieThrow);
   }
 
   get inTray(): boolean {
@@ -78,8 +79,12 @@ class SimulatedDie implements TrayDie {
     return this.body !== undefined && this.stillFor >= REST_TIME;
   }
 
-  get faceValue(): number {
+  get faceValue(): number | undefined {
     return readFace(this.definition, this.rotation);
+  }
+
+  get cocked(): boolean {
+    return this.atRest && this.faceValue === undefined;
   }
 
   /** Called once per physics step: counts down to entering the Tray, then tracks rest. */
@@ -92,9 +97,19 @@ class SimulatedDie implements TrayDie {
     this.stillFor = still ? this.stillFor + TIMESTEP : 0;
   }
 
-  /** Takes the Die out of the world, whether or not it has entered the Tray. */
+  /** Takes the Die out of the world, whether or not it has entered the Tray; it is no longer in the Tray. */
   remove(): void {
     if (this.body) this.world.removeRigidBody(this.body);
+    this.body = undefined;
+  }
+
+  /** (Re-)throws the Die: out of the Tray, then in with the Throw, after its delay if it has one. */
+  rethrow(dieThrow: Throw): void {
+    this.remove();
+    this.dieThrow = dieThrow;
+    this.stillFor = 0;
+    this.stepsToEnter = Math.round((dieThrow.delay ?? 0) / TIMESTEP);
+    if (this.stepsToEnter === 0) this.enter();
   }
 
   /** Creates the Die's body at its Throw's starting pose and velocity. */
@@ -157,6 +172,13 @@ export class TraySimulation {
     const die = new SimulatedDie(dieType, dieThrow, this.world);
     this.dice.push(die);
     return die;
+  }
+
+  /** Throws one Die of the Tray again; every other Die stays where it is. */
+  rethrowDie(die: TrayDie, dieThrow: Throw): void {
+    const simulated = this.dice.find((d) => d === die);
+    if (!simulated) throw new Error(`${die.definition.name} is not in the Tray`);
+    simulated.rethrow(dieThrow);
   }
 
   /** Removes every Die from the Tray. */

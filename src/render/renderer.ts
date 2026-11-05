@@ -4,6 +4,9 @@ import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
 import { createDieMesh } from "./dieMesh";
 
 const BASE_FOV = 40;
+const COCKED_COLOUR = "#ffd23f";
+/** How much bigger than its Die the Cocked highlight is drawn. */
+const COCKED_OUTLINE_SCALE = 1.15;
 
 /**
  * Draws the Tray from a fixed angled camera. It only reads Die poses from
@@ -14,6 +17,8 @@ export class Renderer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 100);
   private readonly meshes = new Map<TrayDie, THREE.Mesh>();
+  private readonly cockedOutlines = new Map<TrayDie, THREE.Mesh>();
+  private readonly raycaster = new THREE.Raycaster();
   private readonly handGroup = new THREE.Group();
   private drawnHand: readonly HandPose[] = [];
 
@@ -39,7 +44,7 @@ export class Renderer {
 
   /**
    * Keeps one mesh per Die in the Tray and copies each Die's pose onto it,
-   * and draws the Hand waiting at the near edge.
+   * outlining any Cocked Die, and draws the Hand waiting at the near edge.
    */
   render(dice: readonly TrayDie[], hand: readonly HandPose[]): void {
     if (hand !== this.drawnHand) this.drawHand(hand);
@@ -47,21 +52,40 @@ export class Renderer {
       if (!dice.includes(die)) {
         this.scene.remove(mesh);
         this.meshes.delete(die);
+        this.cockedOutlines.delete(die);
       }
     }
     for (const die of dice) {
       let mesh = this.meshes.get(die);
       if (!mesh) {
         mesh = createDieMesh(die.definition);
+        const outline = cockedOutline(mesh);
+        mesh.add(outline);
+        this.cockedOutlines.set(die, outline);
         this.meshes.set(die, mesh);
         this.scene.add(mesh);
       }
+      this.cockedOutlines.get(die)!.visible = die.cocked;
       const p = die.position;
       const q = die.rotation;
       mesh.position.set(p.x, p.y, p.z);
       mesh.quaternion.set(q.x, q.y, q.z, q.w);
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** The Die in the Tray drawn under a point on the page, if any. */
+  dieAt(clientX: number, clientY: number): TrayDie | undefined {
+    const rect = this.canvas.getBoundingClientRect();
+    const pointer = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(pointer, this.camera);
+    const [hit] = this.raycaster.intersectObjects([...this.meshes.values()], false);
+    if (!hit) return undefined;
+    for (const [die, mesh] of this.meshes) if (mesh === hit.object) return die;
+    return undefined;
   }
 
   private drawHand(hand: readonly HandPose[]): void {
@@ -125,4 +149,14 @@ export class Renderer {
     wall(outer, thickness, 0, depth / 2 + thickness / 2);
     wall(outer, thickness, 0, -depth / 2 - thickness / 2);
   }
+}
+
+const cockedMaterial = new THREE.MeshBasicMaterial({ color: COCKED_COLOUR, side: THREE.BackSide });
+
+/** A glowing rim behind a Die: its own shape, slightly larger, seen from inside. */
+function cockedOutline(dieMesh: THREE.Mesh): THREE.Mesh {
+  const outline = new THREE.Mesh(dieMesh.geometry, cockedMaterial);
+  outline.scale.setScalar(COCKED_OUTLINE_SCALE);
+  outline.visible = false;
+  return outline;
 }
