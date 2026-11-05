@@ -16,10 +16,10 @@ export function autoThrow(tray: TrayDimensions, dice: DieDefinition[]): Throw[] 
 }
 
 /** A throw for one Die starting between `left` and `right` along the near edge. */
-function throwOne(tray: TrayDimensions, dieType: DieDefinition, left: number, right: number): Throw {
+function throwOne(tray: TrayDimensions, die: DieDefinition, left: number, right: number): Throw {
   const random = Math.random;
   const between = (min: number, max: number) => min + (max - min) * random();
-  const margin = dieType.radius + 0.1;
+  const margin = die.radius + 0.1;
 
   return {
     position: {

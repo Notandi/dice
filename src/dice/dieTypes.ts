@@ -50,13 +50,15 @@ export const d8 = buildDie({
  * d10, the odd numbers meet at one pole and the even at the other, opposite
  * faces add up to 9, and a 0 reads as 10.
  */
+const d10Shape = { vertices: trapezohedronVertices(5), radius: 0.85 };
+const d10Numbering = { labels: [1, 3, 5, 7, 9], oppositeSum: 9 };
+
 export const d10 = buildDie({
   name: "d10",
   colour: "#e07b2e",
   inkColour: "#1d2433",
-  vertices: trapezohedronVertices(5),
-  radius: 0.85,
-  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9 },
+  ...d10Shape,
+  numbering: d10Numbering,
 });
 
 /**
@@ -67,9 +69,8 @@ export const tensDie = buildDie({
   name: "d100 Tens Die",
   colour: "#1f7a6d",
   inkColour: "#ffffff",
-  vertices: trapezohedronVertices(5),
-  radius: 0.85,
-  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9, print: (n) => `${n}0`, value: (n) => n * 10 },
+  ...d10Shape,
+  numbering: { ...d10Numbering, print: (n) => `${n}0`, value: (n) => n * 10 },
 });
 
 /**
@@ -80,9 +81,8 @@ export const unitsDie = buildDie({
   name: "d100 Units Die",
   colour: "#8fd6c9",
   inkColour: "#1d2433",
-  vertices: trapezohedronVertices(5),
-  radius: 0.85,
-  numbering: { labels: [1, 3, 5, 7, 9], oppositeSum: 9, value: (n) => n },
+  ...d10Shape,
+  numbering: { ...d10Numbering, value: (n) => n },
 });
 
 /** Dodecahedron. Opposite faces add up to 13. */
@@ -125,7 +125,7 @@ export interface RolledDieType {
 export const d100: RolledDieType = {
   name: "d100",
   dice: [tensDie, unitsDie],
-  combine: ([tens, units]) => percentile(tens, units),
+  combine: ([tens, units]) => d100Value(tens, units),
 };
 
 /** Every Die Type a Roll can ask for, in picker order. */
@@ -135,7 +135,7 @@ export const ROLLED_DIE_TYPES: RolledDieType[] = [
 ];
 
 /** Tens + units, where 00 with 0 reads as 100. */
-function percentile(tens: number, units: number): number {
+function d100Value(tens: number, units: number): number {
   return tens + units === 0 ? 100 : tens + units;
 }
 
