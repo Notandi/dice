@@ -8,9 +8,20 @@ const EPSILON = 1e-6;
  *   that meets there, and the Die is read at the corner pointing up (the d4).
  * - faces: each face carries one number in its centre. Faces are numbered
  *   from the top down with `labels`, and each opposite face takes the rest
- *   of `oppositeSum`. A face printed 0 reads as the number of faces (a plain d10).
+ *   of `oppositeSum`. By default a face shows its number as written and a 0
+ *   reads as the number of faces (a plain d10); `print` and `value` change
+ *   that, for the Tens Die and Units Die of a d100.
  */
-export type Numbering = "corners" | { labels: number[]; oppositeSum: number };
+export type Numbering = "corners" | FaceNumbering;
+
+export interface FaceNumbering {
+  labels: number[];
+  oppositeSum: number;
+  /** The text printed for a face's number. */
+  print?: (n: number) => string;
+  /** The Face Value a face's number reads as. */
+  value?: (n: number) => number;
+}
 
 export interface DieSpec {
   name: string;
@@ -39,14 +50,18 @@ export function buildDie(spec: DieSpec): DieDefinition {
     return { name: spec.name, colour: spec.colour, inkColour: spec.inkColour, vertices, faces, readings, radius: spec.radius };
   }
 
+  const {
+    print = String,
+    value = (n: number) => (n === 0 ? shapes.length : n),
+  } = spec.numbering;
   const labels = numberOppositePairs(shapes, spec.numbering);
   const faces: Face[] = shapes.map(({ corners, normal }, i) => ({
     corners,
     normal,
-    labels: [{ text: String(labels[i]), at: "centre" }],
+    labels: [{ text: print(labels[i]), at: "centre" }],
   }));
   const readings = shapes.map(({ normal }, i): Reading => ({
-    value: labels[i] === 0 ? shapes.length : labels[i],
+    value: value(labels[i]),
     direction: normal,
   }));
   return { name: spec.name, colour: spec.colour, inkColour: spec.inkColour, vertices, faces, readings, radius: spec.radius };
@@ -64,7 +79,7 @@ interface FaceShape {
  */
 function numberOppositePairs(
   shapes: FaceShape[],
-  { labels: handOut, oppositeSum }: { labels: number[]; oppositeSum: number },
+  { labels: handOut, oppositeSum }: FaceNumbering,
 ): number[] {
   const labels: (number | undefined)[] = shapes.map(() => undefined);
   const order = shapes.map((_, i) => i).sort((a, b) => compareTopDown(shapes[a].normal, shapes[b].normal));

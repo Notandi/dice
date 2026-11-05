@@ -2,18 +2,28 @@ import type { DieDefinition } from "../dice/types";
 import type { Throw, TrayDimensions } from "./traySimulation";
 
 /**
- * The automatic Thrower: a throw from the near edge of the Tray towards the
- * far wall, with random aim, force and spin. Randomness only shapes the throw,
- * never the Face Value (ADR 0001).
+ * The automatic Thrower: throws dice from the near edge of the Tray towards
+ * the far wall, with random aim, force and spin. Each Die starts in its own
+ * lane across the near edge so no two start overlapping. Randomness only
+ * shapes the throw, never the Face Value (ADR 0001).
  */
-export function autoThrow(tray: TrayDimensions, dieType: DieDefinition): Throw {
+export function autoThrow(tray: TrayDimensions, dice: DieDefinition[]): Throw[] {
+  const laneWidth = tray.width / dice.length;
+  return dice.map((die, i) => {
+    const left = -tray.width / 2 + i * laneWidth;
+    return throwOne(tray, die, left, left + laneWidth);
+  });
+}
+
+/** A throw for one Die starting between `left` and `right` along the near edge. */
+function throwOne(tray: TrayDimensions, die: DieDefinition, left: number, right: number): Throw {
   const random = Math.random;
   const between = (min: number, max: number) => min + (max - min) * random();
-  const margin = dieType.radius + 0.1;
+  const margin = die.radius + 0.1;
 
   return {
     position: {
-      x: between(-tray.width / 2 + margin, tray.width / 2 - margin),
+      x: between(left + margin, right - margin),
       y: between(margin, tray.lidHeight - margin),
       z: tray.depth / 2 - margin,
     },

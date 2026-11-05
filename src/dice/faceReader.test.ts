@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { d4, d6, d8, d10, d12, d20 } from "./dieTypes";
+import { d4, d6, d8, d10, d12, d20, tensDie, unitsDie } from "./dieTypes";
 import { readFace } from "./faceReader";
 import { add, cross, dot, normalize, scale } from "./polyhedron";
 import type { DieDefinition, Face, Rotation, Vec3 } from "./types";
@@ -125,6 +125,53 @@ describe("Face Reader: d10", () => {
 
     expect(poles).toHaveLength(2);
     expect(poles.map(parityAround)).toEqual(expect.arrayContaining([[0], [1]]));
+  });
+});
+
+describe("Face Reader: Tens Die", () => {
+  it("is printed 00 to 90 in tens, one number in the centre of each face", () => {
+    const printed = tensDie.faces.map((face) => face.labels[0].text).sort();
+    expect(printed).toEqual(["00", "10", "20", "30", "40", "50", "60", "70", "80", "90"]);
+    for (const face of tensDie.faces) expect(face.labels).toHaveLength(1);
+  });
+
+  it("reads the tens printed on whichever face points up, with 00 as 0", () => {
+    const expected: Record<string, number> = { "00": 0, "10": 10, "20": 20, "30": 30, "40": 40, "50": 50, "60": 60, "70": 70, "80": 80, "90": 90 };
+    for (const face of tensDie.faces) {
+      expect(readFace(tensDie, turnTo(face.normal, UP))).toBe(expected[face.labels[0].text]);
+    }
+  });
+
+  it("still reads the top face when tilted a little", () => {
+    for (const face of tensDie.faces) {
+      const resting = turnTo(face.normal, UP);
+      expect(readFace(tensDie, compose(TILT, resting))).toBe(readFace(tensDie, resting));
+    }
+  });
+});
+
+describe("Face Reader: Units Die", () => {
+  it("is printed 0 to 9, one number in the centre of each face", () => {
+    const printed = unitsDie.faces.map((face) => face.labels[0].text).sort();
+    expect(printed).toEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    for (const face of unitsDie.faces) expect(face.labels).toHaveLength(1);
+  });
+
+  it("reads the number printed on whichever face points up, with 0 as 0", () => {
+    for (const face of unitsDie.faces) {
+      expect(readFace(unitsDie, turnTo(face.normal, UP))).toBe(Number(face.labels[0].text));
+    }
+  });
+
+  it("still reads the top face when tilted a little", () => {
+    for (const face of unitsDie.faces) {
+      const resting = turnTo(face.normal, UP);
+      expect(readFace(unitsDie, compose(TILT, resting))).toBe(readFace(unitsDie, resting));
+    }
+  });
+
+  it("looks different from the Tens Die", () => {
+    expect(unitsDie.colour).not.toBe(tensDie.colour);
   });
 });
 
