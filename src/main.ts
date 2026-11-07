@@ -1,8 +1,11 @@
 import { HandControls } from "./hand/handControls";
 import { handLayout, type HandPose } from "./hand/handLayout";
+import { History } from "./history/history";
+import { renderHistory } from "./history/historyList";
 import type { RollPlan } from "./notation/diceNotation";
 import { Renderer } from "./render/renderer";
-import { diceNeeded, diceToThrow, RollEngine, type BreakdownPart, type DieResult, type RollStep } from "./roll/roll";
+import { diceNeeded, diceToThrow, RollEngine, type RollStep } from "./roll/roll";
+import { renderBreakdown } from "./roll/breakdownView";
 import { autoRethrow, autoThrow } from "./tray/autoThrower";
 import type { DieDefinition } from "./dice/types";
 import { TIMESTEP, TraySimulation, type TrayDie } from "./tray/traySimulation";
@@ -16,6 +19,7 @@ const canvas = $<HTMLCanvasElement>("#tray");
 const rollButton = $<HTMLButtonElement>("#roll");
 const totalEl = $("#total");
 const breakdownEl = $("#breakdown");
+const historyEl = $("#history");
 
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
@@ -25,7 +29,9 @@ let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
 /** The Roll in the Tray, until its rules are done. `dice` is in Tray order, as the engine counts them. */
-let rolling: { engine: RollEngine; dice: TrayDie[] } | undefined;
+let rolling: { plan: RollPlan; engine: RollEngine; dice: TrayDie[] } | undefined;
+/** This session's Rolls; gone on refresh. */
+const history = new History();
 
 const hand = new HandControls(
   { dieButtons: $("#die-buttons"), notation: $("#notation"), clear: $("#clear"), error: $("#notation-error") },
@@ -44,7 +50,7 @@ rollButton.addEventListener("click", () => {
   const dice = diceToThrow(plan);
   sim.clear();
   const throws = autoThrow(sim.tray, dice);
-  rolling = { engine: new RollEngine(plan), dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
+  rolling = { plan, engine: new RollEngine(plan), dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
   handShown = false;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
@@ -82,43 +88,6 @@ function throwFollowUps(dice: TrayDie[], step: Extract<RollStep, { kind: "throw"
   for (const i of step.rethrow) rethrow(dice[i]);
   for (const definition of step.add) dice.push(throwExtra(definition));
 }
-
-/**
- * e.g. `1d20r1 (~~1~~ 14) + 2d6! (6!, 2, 5) − 1`: Re-rolled values struck
- * through before the one that counts, and `!` on each Die that Exploded.
- */
-function renderBreakdown(parts: BreakdownPart[]): void {
-  breakdownEl.replaceChildren();
-  parts.forEach((part, i) => {
-    const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
-    breakdownEl.append(negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "");
-    if (part.kind === "modifier") return breakdownEl.append(String(Math.abs(part.value)));
-    breakdownEl.append(`${part.notation} (`);
-    part.dice.forEach((die, j) => {
-      if (j > 0) breakdownEl.append(", ");
-      breakdownEl.append(...dieNodes(die));
-    });
-    breakdownEl.append(")");
-    if (part.explosionsCapped) breakdownEl.append(" [no more Explodes: limit reached]");
-  });
-}
-
-function dieNodes(die: DieResult): (Node | string)[] {
-  const rerolled = die.rerolled.flatMap((value) => {
-    const struck = document.createElement("s");
-    struck.className = "rerolled";
-    struck.title = "Re-rolled";
-    struck.textContent = String(value);
-    return [struck, " "];
-  });
-  if (!die.exploded) return [...rerolled, String(die.value)];
-  const exploded = document.createElement("span");
-  exploded.className = "exploded";
-  exploded.title = "Exploded";
-  exploded.textContent = `${die.value}!`;
-  return [...rerolled, exploded];
-}
-
 let last = performance.now();
 let accumulator = 0;
 
@@ -141,10 +110,12 @@ function frame(now: number) {
       const step = rolling.engine.settle(faceValues);
       if (step.kind === "throw") throwFollowUps(rolling.dice, step);
       else {
+        const entry = history.add(rolling.plan, step.result);
         rolling = undefined;
-        totalEl.textContent = String(step.result.total);
+        totalEl.textContent = String(entry.total);
         totalEl.classList.remove("pending");
-        renderBreakdown(step.result.breakdown);
+        renderBreakdown(breakdownEl, entry.breakdown);
+        renderHistory(historyEl, history.entries, (entry) => hand.load(entry.plan));
         handShown = true; // ready to throw again
       }
     } else {

@@ -56,11 +56,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-#breakdown .rerolled {
+.rerolled {
   opacity: 0.6;
 }
 
-#breakdown .exploded {
+.exploded {
   font-weight: 600;
 }
 
@@ -139,4 +139,71 @@ button:disabled {
   padding: 10px 32px;
   background: #e8b04a;
   color: #20262e;
+}
+
+#history-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: min(280px, calc(100% - 32px));
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#history-panel:has(#history:empty) {
+  display: none;
+}
+
+#history-heading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+#history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#history button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  text-align: left;
+  background: rgb(52 60 71 / 0.85);
+  color: #f4efe3;
+}
+
+#history button:hover {
+  background: #434c59;
+}
+
+.history-notation {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.history-total {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-breakdown {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
 }
