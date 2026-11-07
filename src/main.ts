@@ -28,6 +28,10 @@ const rollButton = $<HTMLButtonElement>("#roll");
 const totalEl = $("#total");
 const breakdownEl = $("#breakdown");
 
+// PROTOTYPE (throw feel): `?variant=` swaps in a throwaway throw style in dev builds only.
+const prototype = import.meta.env.DEV ? await import("./prototype/throwFeelPrototype") : undefined;
+const prototypeActive = prototype?.prepare() ?? false;
+
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
 
@@ -35,6 +39,8 @@ const renderer = new Renderer(canvas, sim.tray);
 let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
+/** PROTOTYPE: the prototype has picked the Hand up and draws it itself. */
+let handHeld = false;
 /** The Roll in the Tray, until every Die has rested. */
 let rolling: { plan: RollPlan; dice: TrayDie[] } | undefined;
 
@@ -86,7 +92,7 @@ canvas.addEventListener("pointerdown", (event) => {
   const die = renderer.dieAt(event.clientX, event.clientY);
   let grabbed: TrayDie | "hand";
   if (rolling && die?.cocked) grabbed = die;
-  else if (overHand(point)) grabbed = "hand";
+  else if (!prototypeActive && overHand(point)) grabbed = "hand";
   else return;
   canvas.setPointerCapture(event.pointerId);
   gesture = {
@@ -101,7 +107,7 @@ canvas.addEventListener("pointerdown", (event) => {
 
 canvas.addEventListener("pointermove", (event) => {
   if (!gesture) {
-    canvas.style.cursor = cursorAt(event.clientX, event.clientY);
+    if (!prototypeActive) canvas.style.cursor = cursorAt(event.clientX, event.clientY);
     return;
   }
   if (event.pointerId !== gesture.pointerId) return;
@@ -208,6 +214,17 @@ function formatBreakdown(parts: BreakdownPart[]): string {
     .join("");
 }
 
+prototype?.start({
+  canvas,
+  sim,
+  renderer,
+  handPoses: () => handPoses,
+  handThrowable,
+  gestureActive: () => gesture !== undefined,
+  setHandHeld: (held) => (handHeld = held),
+  throwHand: (throws) => throwHand(() => throws),
+});
+
 let last = performance.now();
 let accumulator = 0;
 
@@ -240,7 +257,7 @@ function frame(now: number) {
     breakdownEl.textContent = "";
   }
 
-  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND, handOffset);
+  renderer.render(sim.trayDice, handShown && !handHeld ? handPoses : NO_HAND, handOffset);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
