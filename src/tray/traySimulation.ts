@@ -103,6 +103,11 @@ class SimulatedDie implements TrayDie {
     this.body = undefined;
   }
 
+  /** Holds the Die where it rests, so other dice bounce off it without moving it, until it is re-thrown. */
+  holdInPlace(): void {
+    this.body?.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+  }
+
   /** (Re-)throws the Die: out of the Tray, then in with the Throw, after its delay if it has one. */
   rethrow(dieThrow: Throw): void {
     this.remove();
@@ -179,6 +184,14 @@ export class TraySimulation {
     const simulated = this.dice.find((d) => d === die);
     if (!simulated) throw new Error(`${die.definition.name} is not in the Tray`);
     simulated.rethrow(dieThrow);
+  }
+
+  /**
+   * Holds every Die in the Tray where it is, so dice thrown in later can't
+   * knock it onto another face. A Die moves again once it is re-thrown.
+   */
+  holdAllInPlace(): void {
+    for (const die of this.dice) die.holdInPlace();
   }
 
   /** Removes every Die from the Tray. */
