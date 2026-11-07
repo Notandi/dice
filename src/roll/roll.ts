@@ -57,3 +57,15 @@ export function rollResult(plan: RollPlan, faceValues: number[]): RollResult {
 function diceTerms(plan: RollPlan): DiceTerm[] {
   return plan.terms.filter((t): t is DiceTerm => t.kind === "dice");
 }
+
+/** A Breakdown as text, e.g. `1d20 (14) + 2d6 (3, 5) − 1`. */
+export function formatBreakdown(parts: BreakdownPart[]): string {
+  return parts
+    .map((part, i) => {
+      const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
+      const sign = negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "";
+      const body = part.kind === "dice" ? `${part.notation} (${part.values.join(", ")})` : String(Math.abs(part.value));
+      return sign + body;
+    })
+    .join("");
+}
