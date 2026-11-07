@@ -1,6 +1,6 @@
 /**
  * PROTOTYPE: throwaway. A floating bar to flip between `?variant=` options.
- * Only mounted in dev builds. Switching reloads the page, because a variant
+ * Shown on the live site too, so anyone can try every style. Switching reloads the page, because a variant
  * can change how the Tray is built.
  */
 export function mountSwitcher(variants: { key: string; name: string }[], current: string): void {

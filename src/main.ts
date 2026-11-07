@@ -33,8 +33,9 @@ const totalEl = $("#total");
 const breakdownEl = $("#breakdown");
 const historyEl = $("#history");
 
-// PROTOTYPE (throw feel): `?variant=` swaps in a throwaway throw style in dev builds only.
-const prototype = import.meta.env.DEV ? await import("./prototype/throwFeelPrototype") : undefined;
+// PROTOTYPE (throw feel, #7): `?variant=` swaps in a throwaway throw style. It ships on
+// the live site on purpose so people can try every style; remove once one is chosen.
+const prototype = await import("./prototype/throwFeelPrototype");
 const prototypeActive = prototype?.prepare() ?? false;
 
 const sim = await TraySimulation.create();

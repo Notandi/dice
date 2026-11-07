@@ -1,5 +1,6 @@
 /**
- * PROTOTYPE: throwaway, not production code. Delete once the throw feel is decided.
+ * PROTOTYPE: throwaway, not production code. It ships on the live site on
+ * purpose so people can try every style; delete once the throw feel is decided (#7).
  *
  * Question: what should flinging the Hand feel like? The shipped fling slides
  * the dice flat, its strength doesn't match the flick, the Hand snaps into a
