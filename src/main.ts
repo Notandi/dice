@@ -8,6 +8,7 @@ import { TIMESTEP, TraySimulation, type TrayDie } from "./tray/traySimulation";
 
 const MAX_STEPS_PER_FRAME = 10; // don't spiral after a long pause (e.g. a background tab)
 const NO_HAND: readonly HandPose[] = [];
+const NONE_DROPPED: ReadonlySet<TrayDie> = new Set();
 const COCKED_HINT = "Cocked! Click a highlighted Die to re-throw it.";
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
@@ -25,6 +26,8 @@ let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
 /** The Roll in the Tray, until every Die has rested. */
 let rolling: { plan: RollPlan; dice: TrayDie[] } | undefined;
+/** The Dropped dice of the last finished Roll, dimmed until the next Roll. */
+let droppedDice = NONE_DROPPED;
 
 const hand = new HandControls(
   { dieButtons: $("#die-buttons"), notation: $("#notation"), clear: $("#clear"), error: $("#notation-error") },
@@ -45,6 +48,7 @@ rollButton.addEventListener("click", () => {
   const throws = autoThrow(sim.tray, dice);
   rolling = { plan, dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
   handShown = false;
+  droppedDice = NONE_DROPPED;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
   breakdownEl.textContent = "";
@@ -61,16 +65,19 @@ canvas.addEventListener("pointermove", (event) => {
   canvas.style.cursor = renderer.dieAt(event.clientX, event.clientY)?.cocked ? "pointer" : "";
 });
 
-/** e.g. `1d20 (14) + 2d6 (3, 5) − 1` */
-function formatBreakdown(parts: BreakdownPart[]): string {
-  return parts
-    .map((part, i) => {
-      const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
-      const sign = negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "";
-      const body = part.kind === "dice" ? `${part.notation} (${part.values.join(", ")})` : String(Math.abs(part.value));
-      return sign + body;
-    })
-    .join("");
+/** e.g. `2d20kh1 (14, 3) + 2d6 (3, 5) − 1`, with Dropped values (the 3 here) struck through. */
+function formatBreakdown(parts: BreakdownPart[]): Node[] {
+  return parts.flatMap((part, i): (Node | string)[] => {
+    const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
+    const sign = negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "";
+    if (part.kind === "modifier") return [sign + Math.abs(part.value)];
+    const values = part.values.flatMap(({ value, dropped }, j) => {
+      const text = String(value);
+      const node = dropped ? Object.assign(document.createElement("s"), { textContent: text, title: "Dropped" }) : text;
+      return j > 0 ? [", ", node] : [node];
+    });
+    return [`${sign}${part.notation} (`, ...values, ")"];
+  }).map((node) => (typeof node === "string" ? document.createTextNode(node) : node));
 }
 
 let last = performance.now();
@@ -92,10 +99,11 @@ function frame(now: number) {
     const faceValues = rolling.dice.map((die) => die.faceValue);
     if (faceValues.every((value) => value !== undefined)) {
       const result = rollResult(rolling.plan, faceValues);
+      droppedDice = new Set(rolling.dice.filter((_, i) => result.droppedByTrayDie[i]));
       rolling = undefined;
       totalEl.textContent = String(result.total);
       totalEl.classList.remove("pending");
-      breakdownEl.textContent = formatBreakdown(result.breakdown);
+      breakdownEl.replaceChildren(...formatBreakdown(result.breakdown));
       handShown = true; // ready to throw again
     } else {
       // The Total stays pending until every Cocked Die is re-thrown.
@@ -105,7 +113,7 @@ function frame(now: number) {
     breakdownEl.textContent = "";
   }
 
-  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND);
+  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND, droppedDice);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

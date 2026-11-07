@@ -132,3 +132,7 @@ button:disabled {
   background: #e8b04a;
   color: #20262e;
 }
+
+#breakdown s {
+  opacity: 0.6;
+}
