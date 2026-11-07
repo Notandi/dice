@@ -1,8 +1,8 @@
 import type { DieDefinition, Vec3 } from "../dice/types";
 import type { Throw, TrayDimensions } from "./traySimulation";
 
-/** Seconds between waves when there are more dice than lanes. */
-const WAVE_GAP = 0.2;
+/** Seconds between waves when there are more dice than can start at once. */
+export const WAVE_GAP = 0.2;
 
 /**
  * The automatic Thrower: throws dice from the near edge of the Tray towards
@@ -51,8 +51,7 @@ function distance(a: Vec3, b: Vec3): number {
 
 /** A throw for one Die starting between `left` and `right` along the near edge. */
 function throwOne(tray: TrayDimensions, die: DieDefinition, left: number, right: number): Throw {
-  const random = Math.random;
-  const between = (min: number, max: number) => min + (max - min) * random();
+  const between = (min: number, max: number) => min + (max - min) * Math.random();
   const margin = die.radius + 0.1;
 
   return {
@@ -61,7 +60,7 @@ function throwOne(tray: TrayDimensions, die: DieDefinition, left: number, right:
       y: between(margin, tray.lidHeight - margin),
       z: tray.depth / 2 - margin,
     },
-    rotation: randomRotation(random),
+    rotation: randomRotation(),
     linearVelocity: {
       x: between(-4, 4),
       y: between(0, 2),
@@ -76,10 +75,10 @@ function throwOne(tray: TrayDimensions, die: DieDefinition, left: number, right:
 }
 
 /** A uniformly random unit quaternion (Shoemake's method). */
-function randomRotation(random: () => number) {
-  const u1 = random();
-  const u2 = random() * 2 * Math.PI;
-  const u3 = random() * 2 * Math.PI;
+export function randomRotation() {
+  const u1 = Math.random();
+  const u2 = Math.random() * 2 * Math.PI;
+  const u3 = Math.random() * 2 * Math.PI;
   const a = Math.sqrt(1 - u1);
   const b = Math.sqrt(u1);
   return { x: a * Math.sin(u2), y: a * Math.cos(u2), z: b * Math.sin(u3), w: b * Math.cos(u3) };
