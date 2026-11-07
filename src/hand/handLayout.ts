@@ -88,3 +88,16 @@ function rotate(v: Vec3, q: Rotation): Vec3 {
   const u = cross(q, t);
   return { x: v.x + 2 * (q.w * t.x + u.x), y: v.y + 2 * (q.w * t.y + u.y), z: v.z + 2 * (q.w * t.z + u.z) };
 }
+
+/**
+ * The Hand as its last Roll left it in the Tray: each Die where it came to
+ * rest, at full size, so picking it up starts from there.
+ */
+export function handAsLeft(dice: readonly { definition: DieDefinition; position: Vec3; rotation: Rotation }[]): HandPose[] {
+  return dice.map(({ definition, position, rotation }) => ({
+    definition,
+    position: { ...position },
+    rotation: { ...rotation },
+    scale: 1,
+  }));
+}
