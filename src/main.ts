@@ -1,6 +1,6 @@
 import type { DieDefinition, Vec3 } from "./dice/types";
 import { HandControls } from "./hand/handControls";
-import { handContains, handLayout, type HandPose } from "./hand/handLayout";
+import { handAsLeft, handContains, handLayout, type HandPose } from "./hand/handLayout";
 import { History } from "./history/history";
 import { renderHistory } from "./history/historyList";
 import type { RollPlan } from "./notation/diceNotation";
@@ -41,10 +41,16 @@ const prototypeActive = prototype?.prepare() ?? false;
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
 
-/** The Hand as drawn at the near edge; hidden while its Roll is being thrown. */
+/** The plan {@link handPoses} was laid out for. */
 let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
-let handShown = true;
+/**
+ * Where the Hand waits to be thrown: at the near edge, or in the Tray where
+ * its last Roll left it, so the same dice are thrown again. Neither while its
+ * Roll is being thrown. Changing the Hand clears the Tray and puts it back at
+ * the near edge, so the Tray never holds dice other than the ones being thrown.
+ */
+let handAt: "edge" | "tray" | "thrown" = "edge";
 /** PROTOTYPE: the prototype has picked the Hand up and draws it itself. */
 let handHeld = false;
 /** The Roll in the Tray, until its rules are done. `dice` is in Tray order, as the engine counts them. */
@@ -60,14 +66,19 @@ const hand = new HandControls(
     if (hand.plan !== drawnPlan) {
       drawnPlan = hand.plan;
       handPoses = handLayout(sim.tray, diceToThrow(hand.plan));
-      handShown = true;
+      // A Roll still being thrown finishes first; its dice are cleared once it has.
+      if (!rolling) {
+        sim.clear();
+        droppedDice = NONE_DROPPED;
+      }
+      handAt = "edge";
     }
     rollButton.disabled = !hand.rollable || diceNeeded(hand.plan) === 0;
   },
 );
 
 /** True when the Hand is waiting at the near edge and can be thrown. */
-const handThrowable = () => handShown && !rolling && !rollButton.disabled;
+const handThrowable = () => handAt !== "thrown" && !rolling && !rollButton.disabled;
 
 /** Starts a Roll of the Hand: clears the Tray and throws its dice with the given throws. */
 function throwHand(throwsFor: (dice: DieDefinition[]) => Throw[] | undefined): void {
@@ -77,7 +88,7 @@ function throwHand(throwsFor: (dice: DieDefinition[]) => Throw[] | undefined): v
   if (!throws) return;
   sim.clear();
   rolling = { plan, engine: new RollEngine(plan), dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
-  handShown = false;
+  handAt = "thrown";
   droppedDice = NONE_DROPPED;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
@@ -200,7 +211,7 @@ function overHand(point: Vec3 | undefined): boolean {
   return handThrowable() && point !== undefined && handContains(handPoses, point);
 }
 
-/** The middle of the Hand as drawn at the near edge. */
+/** The middle of the Hand where it waits. */
 function handCentre(): Vec3 {
   const n = Math.max(1, handPoses.length);
   const sum = (axis: "x" | "z") => handPoses.reduce((total, pose) => total + pose.position[axis], 0) / n;
@@ -267,14 +278,23 @@ function frame(now: number) {
       if (step.kind === "throw") throwFollowUps(rolling.dice, step);
       else {
         const entry = history.add(rolling.plan, step.result);
-        const trayDice = rolling.dice;
-        droppedDice = new Set(step.result.droppedTrayIndices.map((i) => trayDice[i]));
+        const finished = rolling;
+        droppedDice = new Set(step.result.droppedTrayIndices.map((i) => finished.dice[i]));
         rolling = undefined;
         totalEl.textContent = String(entry.total);
         totalEl.classList.remove("pending");
         renderBreakdown(breakdownEl, entry.breakdown);
         renderHistory(historyEl, history.entries, (entry) => hand.load(entry.plan));
-        handShown = true; // ready to throw again
+        if (finished.plan === hand.plan) {
+          // Ready to throw the same dice again, from where they lie. Dice added by Explodes
+          // come after the Hand's own, and are left out.
+          handPoses = handAsLeft(finished.dice.slice(0, diceToThrow(hand.plan).length));
+          handAt = "tray";
+        } else {
+          // The Hand changed during the Roll: it waits at the near edge, so clear these dice.
+          sim.clear();
+          droppedDice = NONE_DROPPED;
+        }
       }
     } else {
       // The Total stays pending until every Cocked Die is re-thrown.
@@ -284,7 +304,10 @@ function frame(now: number) {
     breakdownEl.textContent = "";
   }
 
-  renderer.render(sim.trayDice, handShown && !handHeld ? handPoses : NO_HAND, droppedDice, handOffset);
+  // A Hand left in the Tray is drawn as its dice there, until it is picked up.
+  const handLifted = handAt === "tray" && (handHeld || gesture?.grabbed === "hand");
+  const handDrawn = !handHeld && (handAt === "edge" || handLifted);
+  renderer.render(handLifted ? [] : sim.trayDice, handDrawn ? handPoses : NO_HAND, droppedDice, handOffset);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
