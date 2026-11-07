@@ -4,10 +4,14 @@ import type { DieDefinition, Face, Vec3 } from "../dice/types";
 
 const TEXTURE_SIZE = 256;
 const EDGE_SHADE = "rgba(0, 0, 0, 0.18)";
+/** How bright and how opaque a Dropped Die is drawn. */
+const DIMMED_BRIGHTNESS = 0.4;
+const DIMMED_OPACITY = 0.55;
 
 interface DieLook {
   geometry: THREE.BufferGeometry;
-  materials: THREE.Material[];
+  materials: THREE.MeshStandardMaterial[];
+  dimmedMaterials: THREE.MeshStandardMaterial[];
 }
 
 /** Geometry and textures are built once per Die Type and shared by every Die of it. */
@@ -15,14 +19,25 @@ const looks = new Map<DieDefinition, DieLook>();
 
 /** A flat-shaded polyhedron mesh in the Die Type's colour, with its numbers printed on. */
 export function createDieMesh(dieType: DieDefinition): THREE.Mesh {
+  const look = lookOf(dieType);
+  const mesh = new THREE.Mesh(look.geometry, look.materials);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+/** Draws a Die's mesh dimmed (darker and see-through), as for a Dropped Die, or normally. */
+export function setDimmed(mesh: THREE.Mesh, dieType: DieDefinition, dimmed: boolean): void {
+  const look = lookOf(dieType);
+  mesh.material = dimmed ? look.dimmedMaterials : look.materials;
+}
+
+function lookOf(dieType: DieDefinition): DieLook {
   let look = looks.get(dieType);
   if (!look) {
     look = buildLook(dieType);
     looks.set(dieType, look);
   }
-  const mesh = new THREE.Mesh(look.geometry, look.materials);
-  mesh.castShadow = true;
-  return mesh;
+  return look;
 }
 
 function buildLook(dieType: DieDefinition): DieLook {
@@ -58,7 +73,14 @@ function buildLook(dieType: DieDefinition): DieLook {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  return { geometry, materials };
+  const dimmedMaterials = materials.map((material) => {
+    const dimmed = material.clone();
+    dimmed.color.setScalar(DIMMED_BRIGHTNESS);
+    dimmed.transparent = true;
+    dimmed.opacity = DIMMED_OPACITY;
+    return dimmed;
+  });
+  return { geometry, materials, dimmedMaterials };
 }
 
 interface FaceFrame {

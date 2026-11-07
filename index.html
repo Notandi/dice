@@ -8,6 +8,10 @@
   </head>
   <body>
     <canvas id="tray"></canvas>
+    <section id="history-panel" aria-labelledby="history-heading">
+      <h2 id="history-heading">History</h2>
+      <ol id="history"></ol>
+    </section>
     <div id="overlay">
       <div id="result" aria-live="polite">
         <div id="total">–</div>
@@ -19,7 +23,7 @@
           <input
             id="notation"
             type="text"
-            placeholder="e.g. 1d20+1d4+3"
+            placeholder="e.g. 2d20kh1+5"
             aria-label="Dice Notation"
             aria-describedby="notation-error"
             autocomplete="off"
