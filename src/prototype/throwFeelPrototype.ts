@@ -11,7 +11,7 @@
  * three pick the Hand up into a full-size bunch held high above the Tray, so
  * nothing jumps on release, and take arc and spin from the throw itself.
  *
- *   current   the shipped fling, for comparison
+ *   current   "Drag": the shipped fling, for comparison
  *   toss      grab the Hand, it lifts under your finger; flick and let go
  *   shake     press anywhere, the dice gather under your finger and rattle
  *             as you shake; the shake adds spin; flick and let go
@@ -27,10 +27,10 @@ import { TRAY, type Throw, type TraySimulation } from "../tray/traySimulation";
 import { mountSwitcher } from "./prototypeSwitcher";
 
 const VARIANTS = [
-  { key: "current", name: "Current (shipped)", how: "Drag the Hand and let go. This is what ships today." },
-  { key: "toss", name: "Toss", how: "Grab the Hand: it lifts under your finger. Flick and let go." },
-  { key: "shake", name: "Pick up & shake", how: "Press anywhere: the dice gather. Shake to rattle them, flick and let go." },
-  { key: "sling", name: "Slingshot", how: "Press anywhere and pull back. Let go to launch the other way." },
+  { key: "current", name: "Drag", how: "Drag the Hand along the Tray and let go." },
+  { key: "toss", name: "Toss", how: "Grab the Hand to lift it, then flick and let go." },
+  { key: "shake", name: "Shake", how: "Press anywhere to pick the dice up, shake, then flick." },
+  { key: "sling", name: "Sling", how: "Press anywhere, pull back to aim, and let go." },
 ] as const;
 type VariantKey = (typeof VARIANTS)[number]["key"];
 
@@ -107,10 +107,6 @@ interface Held {
 
 export function start(host: PrototypeHost): void {
   const current = variant();
-  mountSwitcher(
-    VARIANTS.map((v) => ({ key: v.key, name: v.name })),
-    current,
-  );
   const panel = mountPanel(current);
   if (current === "current") return;
 
@@ -361,65 +357,57 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-/** The tuning panel, top right: sliders, the last throw's numbers, and a copy button. */
+/** Fills the Throw style card's tuning drawer: sliders, the last throw's numbers, and a copy button. */
 function mountPanel(current: VariantKey) {
-  const info = VARIANTS.find((v) => v.key === current)!;
-  const box = document.createElement("div");
-  box.style.cssText =
-    "position:fixed;top:60px;right:12px;width:min(300px,calc(100vw - 24px));max-height:calc(100vh - 140px);overflow:auto;" +
-    "background:#11151acc;backdrop-filter:blur(6px);color:#f4efe3;font:13px system-ui;border:1px dashed #e8b04a;" +
-    "border-radius:12px;padding:10px 12px;z-index:20";
-  const toggle = document.createElement("button");
-  toggle.textContent = "PROTOTYPE · tune ▾";
-  toggle.style.cssText = "all:unset;cursor:pointer;font-weight:700;color:#e8b04a";
-  const body = document.createElement("div");
-  body.innerHTML = `<p style="margin:6px 0 10px;opacity:.85"><b>${info.name}</b>: ${info.how}</p>`;
-  const stats = document.createElement("pre");
-  stats.style.cssText = "margin:8px 0;white-space:pre-wrap;opacity:.85";
-  stats.textContent = "Last throw: –";
+  const card = mountSwitcher(VARIANTS, current);
+  const { drawer } = card;
 
-  if (current !== "current") {
-    for (const s of SLIDERS) {
-      if (s.only && s.only !== current) continue;
-      const row = document.createElement("label");
-      row.style.cssText = "display:block;margin:6px 0";
-      const value = document.createElement("span");
-      value.style.cssText = "float:right;font-variant-numeric:tabular-nums";
-      value.textContent = String(p[s.key]);
-      const input = document.createElement("input");
-      Object.assign(input, { type: "range", min: s.min, max: s.max, step: s.step, value: p[s.key] });
-      input.style.cssText = "width:100%;accent-color:#e8b04a";
-      input.addEventListener("input", () => {
-        p[s.key] = Number(input.value);
-        value.textContent = input.value;
-      });
-      row.append(s.label, value, input);
-      body.append(row);
-    }
-    const copy = document.createElement("button");
-    copy.textContent = "Copy settings";
-    copy.style.cssText = "margin-top:6px;padding:6px 12px;background:#e8b04a;color:#20262e;font-weight:600";
-    copy.addEventListener("click", () => {
-      const json = JSON.stringify({ variant: current, ...p });
-      navigator.clipboard?.writeText(json).catch(() => {});
-      stats.textContent = `Copied:\n${json}`;
+  if (current === "current") {
+    const note = document.createElement("p");
+    note.className = "ts-empty";
+    note.textContent = "Drag is the style that ships today. Pick another style to tune it.";
+    drawer.append(note);
+    return { lastThrow() {} };
+  }
+
+  for (const s of SLIDERS) {
+    if (s.only && s.only !== current) continue;
+    const row = document.createElement("label");
+    row.className = "ts-slider";
+    const head = document.createElement("span");
+    head.className = "ts-slider-head";
+    const value = document.createElement("span");
+    value.className = "ts-slider-value";
+    value.textContent = String(p[s.key]);
+    head.append(s.label, value);
+    const input = document.createElement("input");
+    Object.assign(input, { type: "range", min: s.min, max: s.max, step: s.step, value: p[s.key] });
+    input.addEventListener("input", () => {
+      p[s.key] = Number(input.value);
+      value.textContent = input.value;
     });
-    body.append(copy);
+    row.append(head, input);
+    drawer.append(row);
   }
-  body.append(stats);
-  toggle.addEventListener("click", () => {
-    body.hidden = !body.hidden;
-    toggle.textContent = `PROTOTYPE · tune ${body.hidden ? "▸" : "▾"}`;
+
+  const foot = document.createElement("div");
+  foot.className = "ts-foot";
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "ts-copy";
+  copy.textContent = "Copy settings";
+  copy.addEventListener("click", () => {
+    navigator.clipboard?.writeText(JSON.stringify({ variant: current, ...p })).catch(() => {});
+    copy.textContent = "Copied ✓";
+    setTimeout(() => (copy.textContent = "Copy settings"), 1500);
   });
-  if (innerWidth < 600) {
-    body.hidden = true;
-    toggle.textContent = "PROTOTYPE · tune ▸";
-  }
-  box.append(toggle, body);
-  document.body.append(box);
+  card.showStats("Throw to see its numbers.");
+  foot.append(copy, card.stats);
+  drawer.append(foot);
+
   return {
     lastThrow(values: Record<string, string>) {
-      stats.textContent = "Last throw:\n" + Object.entries(values).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+      card.showStats(Object.entries(values).map(([k, v]) => `${k} ${v}`).join(" · "));
     },
   };
 }
