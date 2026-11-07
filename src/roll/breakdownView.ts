@@ -1,9 +1,9 @@
 import type { BreakdownPart, DieResult } from "./roll";
 
 /**
- * Shows a Breakdown in `el`, e.g. `1d20r1 (~~1~~ 14) + 2d6! (6!, 2, 5) − 1`:
- * Re-rolled values struck through before the one that counts, and `!` on
- * each Die that Exploded.
+ * Shows a Breakdown in `el`, e.g. `1d20r1 (1 14) + 2d6! (6!, 2, 5) − 1`:
+ * Re-rolled values (the 1 here) struck through before the one that counts,
+ * `!` on each Die that Exploded, and Dropped values struck through too.
  */
 export function renderBreakdown(el: HTMLElement, parts: readonly BreakdownPart[]): void {
   el.replaceChildren();
@@ -22,17 +22,17 @@ export function renderBreakdown(el: HTMLElement, parts: readonly BreakdownPart[]
 }
 
 function dieNodes(die: DieResult): (Node | string)[] {
-  const rerolled = die.rerolled.flatMap((value) => {
-    const struck = document.createElement("s");
-    struck.className = "rerolled";
-    struck.title = "Re-rolled";
-    struck.textContent = String(value);
-    return [struck, " "];
-  });
-  if (!die.exploded) return [...rerolled, String(die.value)];
-  const exploded = document.createElement("span");
-  exploded.className = "exploded";
-  exploded.title = "Exploded";
-  exploded.textContent = `${die.value}!`;
-  return [...rerolled, exploded];
+  const rerolled = die.rerolled.flatMap((value) => [labelled("s", "rerolled", "Re-rolled", String(value)), " "]);
+  const text = die.exploded ? `${die.value}!` : String(die.value);
+  if (die.dropped) return [...rerolled, labelled("s", "dropped", die.exploded ? "Exploded, Dropped" : "Dropped", text)];
+  if (die.exploded) return [...rerolled, labelled("span", "exploded", "Exploded", text)];
+  return [...rerolled, text];
+}
+
+function labelled(tag: "s" | "span", className: string, title: string, text: string): HTMLElement {
+  const el = document.createElement(tag);
+  el.className = className;
+  el.title = title;
+  el.textContent = text;
+  return el;
 }

@@ -12,6 +12,7 @@ import { TIMESTEP, TraySimulation, type TrayDie } from "./tray/traySimulation";
 
 const MAX_STEPS_PER_FRAME = 10; // don't spiral after a long pause (e.g. a background tab)
 const NO_HAND: readonly HandPose[] = [];
+const NONE_DROPPED: ReadonlySet<TrayDie> = new Set();
 const COCKED_HINT = "Cocked! Click a highlighted Die to re-throw it.";
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
@@ -30,6 +31,8 @@ let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
 /** The Roll in the Tray, until its rules are done. `dice` is in Tray order, as the engine counts them. */
 let rolling: { plan: RollPlan; engine: RollEngine; dice: TrayDie[] } | undefined;
+/** The Dropped dice of the last finished Roll, dimmed until the next Roll. */
+let droppedDice = NONE_DROPPED;
 /** This session's Rolls; gone on refresh. */
 const history = new History();
 
@@ -52,6 +55,7 @@ rollButton.addEventListener("click", () => {
   const throws = autoThrow(sim.tray, dice);
   rolling = { plan, engine: new RollEngine(plan), dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
   handShown = false;
+  droppedDice = NONE_DROPPED;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
   breakdownEl.textContent = "";
@@ -111,6 +115,8 @@ function frame(now: number) {
       if (step.kind === "throw") throwFollowUps(rolling.dice, step);
       else {
         const entry = history.add(rolling.plan, step.result);
+        const trayDice = rolling.dice;
+        droppedDice = new Set(step.result.droppedTrayIndices.map((i) => trayDice[i]));
         rolling = undefined;
         totalEl.textContent = String(entry.total);
         totalEl.classList.remove("pending");
@@ -126,7 +132,7 @@ function frame(now: number) {
     breakdownEl.textContent = "";
   }
 
-  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND);
+  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND, droppedDice);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

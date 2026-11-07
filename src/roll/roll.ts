@@ -1,5 +1,5 @@
 import type { DieDefinition } from "../dice/types";
-import { formatDice, meets, type DiceTerm, type RollPlan } from "../notation/diceNotation";
+import { formatDice, meets, type DiceTerm, type KeepDrop, type RollPlan } from "../notation/diceNotation";
 
 /** The most dice a single Roll may put in the Tray. */
 export const MAX_DICE = 50;
@@ -14,6 +14,8 @@ export interface DieResult {
   rerolled: number[];
   /** It showed its maximum and Exploded, so the next Die in the group was thrown for it. */
   exploded: boolean;
+  /** Left out of the Total by Keep / Drop. */
+  dropped: boolean;
 }
 
 /** One part of a Breakdown: a dice group with each Die's result, or a Modifier. */
@@ -31,6 +33,8 @@ export type BreakdownPart =
 export interface RollResult {
   total: number;
   breakdown: BreakdownPart[];
+  /** Tray indices of the Dropped dice, to dim them: both dice of a d100. */
+  droppedTrayIndices: number[];
 }
 
 /**
@@ -86,6 +90,7 @@ interface Group {
  * Re-rolls, then Explodes, and says which dice to throw next, until no Die is
  * waiting for a value and the Roll is done. Re-rolled dice are thrown again in
  * place; each Explode adds a new Die, which is Re-rolled and Explodes in turn.
+ * Keep / Drop then picks from every Die's final value, Exploded ones included.
  */
 export class RollEngine {
   private readonly groups: Group[] = [];
@@ -145,25 +150,42 @@ export class RollEngine {
 
   private result(): RollResult {
     const groups = [...this.groups];
+    const droppedTrayIndices: number[] = [];
     const breakdown = this.plan.terms.map((term): BreakdownPart => {
       if (term.kind === "modifier") return term;
       const group = groups.shift()!;
+      const values = group.dice.map((die) => die.value!);
+      const dropped = droppedIndices(values, term.keepDrop);
+      for (const i of dropped) droppedTrayIndices.push(...group.dice[i].trayIndices);
       return {
         kind: "dice",
         sign: term.sign,
         notation: formatDice(term),
-        dice: group.dice.map(({ value, rerolled, exploded }) => ({ value: value!, rerolled, exploded })),
+        dice: group.dice.map(({ rerolled, exploded }, i) => ({ value: values[i], rerolled, exploded, dropped: dropped.has(i) })),
         explosionsCapped: group.explosionsCapped,
       };
     });
-    const total = breakdown.reduce(
-      (running, part) =>
-        running +
-        (part.kind === "modifier" ? part.value : part.sign * part.dice.reduce((groupTotal, die) => groupTotal + die.value, 0)),
-      0,
-    );
-    return { total, breakdown };
+    const total = breakdown.reduce((running, part) => {
+      if (part.kind === "modifier") return running + part.value;
+      const kept = part.dice.reduce((groupTotal, die) => (die.dropped ? groupTotal : groupTotal + die.value), 0);
+      return running + part.sign * kept;
+    }, 0);
+    return { total, breakdown, droppedTrayIndices };
   }
+}
+
+/**
+ * Which of a group's values are Dropped. Among equal values, the earlier
+ * Die counts as the higher one, so ties are settled the same way every time.
+ */
+function droppedIndices(values: number[], keepDrop: KeepDrop | undefined): Set<number> {
+  if (!keepDrop) return new Set();
+  const highestFirst = values.map((_, i) => i).sort((a, b) => values[b] - values[a] || a - b);
+  // Explodes can add dice, so keeping N may drop more than the group started with.
+  const dropCount = keepDrop.keep ? Math.max(0, values.length - keepDrop.count) : keepDrop.count;
+  // Keeping the highest N drops the lowest rest, and vice versa.
+  const dropHighest = keepDrop.keep ? !keepDrop.highest : keepDrop.highest;
+  return new Set(dropHighest ? highestFirst.slice(0, dropCount) : highestFirst.slice(values.length - dropCount));
 }
 
 function diceTerms(plan: RollPlan): DiceTerm[] {

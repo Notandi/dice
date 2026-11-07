@@ -56,7 +56,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.rerolled {
+.rerolled,
+.dropped {
   opacity: 0.6;
 }
 

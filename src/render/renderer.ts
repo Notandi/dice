@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { HandPose } from "../hand/handLayout";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
-import { createDieMesh } from "./dieMesh";
+import { createDieMesh, setDimmed } from "./dieMesh";
 
 const BASE_FOV = 40;
 const COCKED_COLOUR = "#ffd23f";
@@ -44,9 +44,10 @@ export class Renderer {
 
   /**
    * Keeps one mesh per Die in the Tray and copies each Die's pose onto it,
-   * outlining any Cocked Die, and draws the Hand waiting at the near edge.
+   * outlining any Cocked Die and dimming any Dropped one, and draws the Hand
+   * waiting at the near edge.
    */
-  render(dice: readonly TrayDie[], hand: readonly HandPose[]): void {
+  render(dice: readonly TrayDie[], hand: readonly HandPose[], dropped: ReadonlySet<TrayDie>): void {
     if (hand !== this.drawnHand) this.drawHand(hand);
     for (const [die, mesh] of this.meshes) {
       if (!dice.includes(die)) {
@@ -66,6 +67,7 @@ export class Renderer {
         this.scene.add(mesh);
       }
       this.cockedOutlines.get(die)!.visible = die.cocked;
+      setDimmed(mesh, die.definition, dropped.has(die));
       const p = die.position;
       const q = die.rotation;
       mesh.position.set(p.x, p.y, p.z);

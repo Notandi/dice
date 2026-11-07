@@ -6,6 +6,16 @@ export interface Condition {
   value: number;
 }
 
+/**
+ * Keep / Drop on a dice group: `kh2` keeps the highest 2 Face Values, `dl1`
+ * drops the lowest 1. Dice that don't count toward the Total are Dropped.
+ */
+export interface KeepDrop {
+  keep: boolean;
+  highest: boolean;
+  count: number;
+}
+
 /** `NdX`: a group of N dice of one Die Type, added to or subtracted from the Total. */
 export interface DiceTerm {
   kind: "dice";
@@ -16,6 +26,8 @@ export interface DiceTerm {
   explode?: boolean;
   /** `r`: a Die whose value meets this is Re-rolled, again and again while it does. */
   reroll?: Condition;
+  /** `khN`, `klN`, `dhN` or `dlN`: only some of the group's values count. */
+  keepDrop?: KeepDrop;
 }
 
 /** A Modifier, signed: `-1` is `{ value: -1 }`. */
@@ -38,6 +50,8 @@ export const EMPTY_PLAN: RollPlan = { terms: [] };
 const DIE_TYPE_LIST = ROLLED_DIE_TYPES.map((d) => d.name).join(", ");
 const TERM = /^(\d*)d(\d+|%)|^(\d+)/i;
 const REROLL = /^r([<>]?)(\d+)/i;
+const KEEP_DROP = /^([kd])([hl])(\d+)/i;
+const KEEP_DROP_START = /^(k[hl]?|d[hl])/i;
 /** How each comparison is written after `r`. */
 const COMPARE_SYMBOL: Record<Condition["compare"], string> = { "=": "", "<=": "<", ">=": ">" };
 
@@ -45,8 +59,9 @@ const COMPARE_SYMBOL: Record<Condition["compare"], string> = { "=": "", "<=": "<
  * Reads Dice Notation such as `1d20+1d4+3`: dice groups (`NdX`, `dX` for one
  * die, `d%` for d100) and Modifiers, joined with `+` or `-`. Spaces between
  * terms are allowed. Empty text is an empty Roll. A dice group may be
- * followed, in either order, by `!` to Explode and `rN`, `r<N` or `r>N` to
- * Re-roll.
+ * followed, in any order, by `!` to Explode, `rN`, `r<N` or `r>N` to
+ * Re-roll, and `khN`, `klN`, `dhN` or `dlN` to Keep / Drop (as in `2d20kh1`
+ * or `4d6dl1`).
  */
 export function parseNotation(text: string): ParseResult {
   const terms: Term[] = [];
@@ -80,7 +95,7 @@ export function parseNotation(text: string): ParseResult {
     if (n === 0) return error(`${whole} has no dice in it. Use at least 1.`);
     const term: DiceTerm = { kind: "dice", sign, count: n, dieType };
 
-    // Explode and Re-roll options, written straight after the group.
+    // Explode, Re-roll and Keep / Drop options, written straight after the group.
     for (;;) {
       if (rest[0] === "!") {
         if (term.explode) return error(`${whole} has "!" twice. Write it once to Explode.`);
@@ -100,6 +115,23 @@ export function parseNotation(text: string): ParseResult {
         continue;
       }
       if (/^r/i.test(rest)) return error(`"r" needs a number to Re-roll, like r1, r<2 or r>19.`);
+      const keepDrop = KEEP_DROP.exec(rest);
+      if (keepDrop) {
+        if (term.keepDrop) return error(`${whole} keeps or drops twice. Use one of kh, kl, dh or dl per group.`);
+        const [option, keepOrDrop, highOrLow, countText] = keepDrop;
+        const keepDropCount = Number(countText);
+        const verb = keepOrDrop.toLowerCase() === "k" ? "keep" : "drop";
+        if (keepDropCount === 0) return error(`${whole}${option} would ${verb} no dice. Use at least 1.`);
+        if (keepDropCount > n)
+          return error(`${whole}${option} can't ${verb} ${keepDropCount} of only ${n} ${n === 1 ? "die" : "dice"}.`);
+        if (verb === "drop" && keepDropCount === n)
+          return error(`${whole}${option} would drop every Die. Drop fewer than ${n}.`);
+        term.keepDrop = { keep: verb === "keep", highest: highOrLow.toLowerCase() === "h", count: keepDropCount };
+        rest = rest.slice(option.length);
+        continue;
+      }
+      if (KEEP_DROP_START.test(rest))
+        return error(`Couldn't read "${rest.trimEnd()}" after ${whole}. Keep or drop dice with kh1, kl1, dh1 or dl1.`);
       break;
     }
     rest = rest.trimStart();
@@ -120,11 +152,13 @@ export function formatNotation(plan: RollPlan): string {
     .join("");
 }
 
-/** A dice group without its sign, e.g. `2d6!r1`. */
+/** A dice group without its sign, e.g. `2d6!r1` or `4d6dl1`. */
 export function formatDice(term: DiceTerm): string {
   const explode = term.explode ? "!" : "";
   const reroll = term.reroll ? `r${COMPARE_SYMBOL[term.reroll.compare]}${term.reroll.value}` : "";
-  return `${term.count}${term.dieType.name}${explode}${reroll}`;
+  const { keepDrop } = term;
+  const keepDropText = keepDrop ? `${keepDrop.keep ? "k" : "d"}${keepDrop.highest ? "h" : "l"}${keepDrop.count}` : "";
+  return `${term.count}${term.dieType.name}${explode}${reroll}${keepDropText}`;
 }
 
 /** Whether a value meets the condition. */
@@ -141,12 +175,13 @@ function rerollsEverything(condition: Condition, dieType: RolledDieType): boolea
 
 /**
  * Adds one Die of the given type to the plan: one more in its existing added
- * group if there is one, otherwise a new group after the last dice group.
+ * group if there is one (and it has no options, whose meaning would change),
+ * otherwise a new group after the last dice group.
  */
 export function addDie(plan: RollPlan, dieType: RolledDieType): RollPlan {
   const terms = [...plan.terms];
   const group = terms.findIndex(
-    (t) => t.kind === "dice" && t.sign > 0 && t.dieType === dieType && !t.explode && !t.reroll,
+    (t) => t.kind === "dice" && t.sign > 0 && t.dieType === dieType && !t.explode && !t.reroll && !t.keepDrop,
   );
   if (group >= 0) {
     const term = terms[group] as DiceTerm;
