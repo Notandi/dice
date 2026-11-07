@@ -1,3 +1,4 @@
+import { renderBreakdown } from "../roll/breakdownView";
 import type { HistoryEntry } from "./history";
 
 /**
@@ -22,7 +23,7 @@ export function renderHistory(
       total.textContent = String(entry.total);
       const breakdown = document.createElement("span");
       breakdown.className = "history-breakdown";
-      breakdown.textContent = entry.breakdown;
+      renderBreakdown(breakdown, entry.breakdown);
       button.append(notation, total, breakdown);
       button.addEventListener("click", () => onPick(entry));
       const item = document.createElement("li");

@@ -1,10 +1,10 @@
 import { formatNotation, type RollPlan } from "../notation/diceNotation";
-import { formatBreakdown, type RollResult } from "../roll/roll";
+import type { BreakdownPart, RollResult } from "../roll/roll";
 
 /** One past Roll in the History. */
 export interface HistoryEntry {
   notation: string;
-  breakdown: string;
+  breakdown: BreakdownPart[];
   total: number;
   /** The Roll as planned, to load back into the Hand. */
   plan: RollPlan;
@@ -21,7 +21,7 @@ export class History {
 
   /** Records a finished Roll. */
   add(plan: RollPlan, result: RollResult): HistoryEntry {
-    const entry = { notation: formatNotation(plan), breakdown: formatBreakdown(result.breakdown), total: result.total, plan };
+    const entry = { notation: formatNotation(plan), breakdown: result.breakdown, total: result.total, plan };
     this.recorded.unshift(entry);
     return entry;
   }
