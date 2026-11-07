@@ -209,3 +209,10 @@ button:disabled {
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
+
+/* Phones have no room for the History beside the Tray. */
+@media (max-width: 640px) {
+  #history-panel {
+    display: none;
+  }
+}
