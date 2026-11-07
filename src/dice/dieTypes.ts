@@ -117,6 +117,8 @@ export const DIE_TYPES = [d4, d6, d8, d10, d12, d20];
  */
 export interface RolledDieType {
   name: string;
+  /** The highest value it can give; the lowest is 1. A Die showing it Explodes. */
+  maxValue: number;
   dice: DieDefinition[];
   combine(faceValues: number[]): number;
 }
@@ -124,13 +126,19 @@ export interface RolledDieType {
 /** A d100, thrown as a Tens Die and a Units Die together. */
 export const d100: RolledDieType = {
   name: "d100",
+  maxValue: 100,
   dice: [tensDie, unitsDie],
   combine: ([tens, units]) => d100Value(tens, units),
 };
 
 /** Every Die Type a Roll can ask for, in picker order. */
 export const ROLLED_DIE_TYPES: RolledDieType[] = [
-  ...DIE_TYPES.map((die) => ({ name: die.name, dice: [die], combine: ([value]: number[]) => value })),
+  ...DIE_TYPES.map((die) => ({
+    name: die.name,
+    maxValue: Math.max(...die.readings.map((r) => r.value)),
+    dice: [die],
+    combine: ([value]: number[]) => value,
+  })),
   d100,
 ];
 

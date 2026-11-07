@@ -2,8 +2,9 @@ import { HandControls } from "./hand/handControls";
 import { handLayout, type HandPose } from "./hand/handLayout";
 import type { RollPlan } from "./notation/diceNotation";
 import { Renderer } from "./render/renderer";
-import { diceNeeded, diceToThrow, rollResult, type BreakdownPart } from "./roll/roll";
+import { diceNeeded, diceToThrow, RollEngine, type BreakdownPart, type DieResult, type RollStep } from "./roll/roll";
 import { autoRethrow, autoThrow } from "./tray/autoThrower";
+import type { DieDefinition } from "./dice/types";
 import { TIMESTEP, TraySimulation, type TrayDie } from "./tray/traySimulation";
 
 const MAX_STEPS_PER_FRAME = 10; // don't spiral after a long pause (e.g. a background tab)
@@ -23,8 +24,8 @@ const renderer = new Renderer(canvas, sim.tray);
 let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
-/** The Roll in the Tray, until every Die has rested. */
-let rolling: { plan: RollPlan; dice: TrayDie[] } | undefined;
+/** The Roll in the Tray, until its rules are done. `dice` is in Tray order, as the engine counts them. */
+let rolling: { engine: RollEngine; dice: TrayDie[] } | undefined;
 
 const hand = new HandControls(
   { dieButtons: $("#die-buttons"), notation: $("#notation"), clear: $("#clear"), error: $("#notation-error") },
@@ -43,7 +44,7 @@ rollButton.addEventListener("click", () => {
   const dice = diceToThrow(plan);
   sim.clear();
   const throws = autoThrow(sim.tray, dice);
-  rolling = { plan, dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
+  rolling = { engine: new RollEngine(plan), dice: dice.map((die, i) => sim.throwDie(die, throws[i])) };
   handShown = false;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
@@ -54,23 +55,68 @@ rollButton.addEventListener("click", () => {
 canvas.addEventListener("click", (event) => {
   const die = renderer.dieAt(event.clientX, event.clientY);
   if (!rolling || !die?.cocked) return;
-  const others = sim.trayDice.filter((other) => other !== die);
-  sim.rethrowDie(die, autoRethrow(sim.tray, die.definition, others));
+  rethrow(die);
 });
 canvas.addEventListener("pointermove", (event) => {
   canvas.style.cursor = renderer.dieAt(event.clientX, event.clientY)?.cocked ? "pointer" : "";
 });
 
-/** e.g. `1d20 (14) + 2d6 (3, 5) − 1` */
-function formatBreakdown(parts: BreakdownPart[]): string {
-  return parts
-    .map((part, i) => {
-      const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
-      const sign = negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "";
-      const body = part.kind === "dice" ? `${part.notation} (${part.values.join(", ")})` : String(Math.abs(part.value));
-      return sign + body;
-    })
-    .join("");
+/** Throws one Die again from a clear spot, leaving the others where they are. */
+function rethrow(die: TrayDie): void {
+  const others = sim.trayDice.filter((other) => other !== die);
+  sim.rethrowDie(die, autoRethrow(sim.tray, die.definition, others));
+}
+
+/** Throws a new Die into the Tray, from a clear spot, while the others stay put. */
+function throwExtra(definition: DieDefinition): TrayDie {
+  return sim.throwDie(definition, autoRethrow(sim.tray, definition, sim.trayDice));
+}
+
+/**
+ * Carries out the engine's next step: Re-rolled dice are thrown again,
+ * Explodes add new ones. Every other Die has already counted, so it is held
+ * in place and the face it shows stays the face in the Breakdown.
+ */
+function throwFollowUps(dice: TrayDie[], step: Extract<RollStep, { kind: "throw" }>): void {
+  sim.holdAllInPlace();
+  for (const i of step.rethrow) rethrow(dice[i]);
+  for (const definition of step.add) dice.push(throwExtra(definition));
+}
+
+/**
+ * e.g. `1d20r1 (~~1~~ 14) + 2d6! (6!, 2, 5) − 1`: Re-rolled values struck
+ * through before the one that counts, and `!` on each Die that Exploded.
+ */
+function renderBreakdown(parts: BreakdownPart[]): void {
+  breakdownEl.replaceChildren();
+  parts.forEach((part, i) => {
+    const negative = part.kind === "dice" ? part.sign < 0 : part.value < 0;
+    breakdownEl.append(negative ? (i > 0 ? " − " : "−") : i > 0 ? " + " : "");
+    if (part.kind === "modifier") return breakdownEl.append(String(Math.abs(part.value)));
+    breakdownEl.append(`${part.notation} (`);
+    part.dice.forEach((die, j) => {
+      if (j > 0) breakdownEl.append(", ");
+      breakdownEl.append(...dieNodes(die));
+    });
+    breakdownEl.append(")");
+    if (part.explosionsCapped) breakdownEl.append(" [no more Explodes: limit reached]");
+  });
+}
+
+function dieNodes(die: DieResult): (Node | string)[] {
+  const rerolled = die.rerolled.flatMap((value) => {
+    const struck = document.createElement("s");
+    struck.className = "rerolled";
+    struck.title = "Re-rolled";
+    struck.textContent = String(value);
+    return [struck, " "];
+  });
+  if (!die.exploded) return [...rerolled, String(die.value)];
+  const exploded = document.createElement("span");
+  exploded.className = "exploded";
+  exploded.title = "Exploded";
+  exploded.textContent = `${die.value}!`;
+  return [...rerolled, exploded];
 }
 
 let last = performance.now();
@@ -91,12 +137,16 @@ function frame(now: number) {
   if (rolling && sim.allAtRest) {
     const faceValues = rolling.dice.map((die) => die.faceValue);
     if (faceValues.every((value) => value !== undefined)) {
-      const result = rollResult(rolling.plan, faceValues);
-      rolling = undefined;
-      totalEl.textContent = String(result.total);
-      totalEl.classList.remove("pending");
-      breakdownEl.textContent = formatBreakdown(result.breakdown);
-      handShown = true; // ready to throw again
+      // Re-rolls and Explodes only happen once no Die is Cocked, so they use correct Face Values.
+      const step = rolling.engine.settle(faceValues);
+      if (step.kind === "throw") throwFollowUps(rolling.dice, step);
+      else {
+        rolling = undefined;
+        totalEl.textContent = String(step.result.total);
+        totalEl.classList.remove("pending");
+        renderBreakdown(step.result.breakdown);
+        handShown = true; // ready to throw again
+      }
     } else {
       // The Total stays pending until every Cocked Die is re-thrown.
       breakdownEl.textContent = COCKED_HINT;

@@ -56,6 +56,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+#breakdown .rerolled {
+  opacity: 0.6;
+}
+
+#breakdown .exploded {
+  font-weight: 600;
+}
+
 #hand-controls {
   display: flex;
   flex-direction: column;
