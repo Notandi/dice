@@ -47,6 +47,11 @@ export class HandControls {
     return this.valid;
   }
 
+  /** Replaces the Hand with the plan, e.g. a past Roll picked from the History. */
+  load(plan: RollPlan): void {
+    this.replace(plan, true);
+  }
+
   private add(next: RollPlan): void {
     const refused = refusal(next);
     if (refused) this.showError(`${refused} The Hand wasn't changed.`);
