@@ -33,6 +33,11 @@ const totalEl = $("#total");
 const breakdownEl = $("#breakdown");
 const historyEl = $("#history");
 
+// PROTOTYPE (throw feel, #7): `?variant=` swaps in a throwaway throw style. It ships on
+// the live site on purpose so people can try every style; remove once one is chosen.
+const prototype = await import("./prototype/throwFeelPrototype");
+const prototypeActive = prototype?.prepare() ?? false;
+
 const sim = await TraySimulation.create();
 const renderer = new Renderer(canvas, sim.tray);
 
@@ -40,6 +45,8 @@ const renderer = new Renderer(canvas, sim.tray);
 let drawnPlan: RollPlan | undefined;
 let handPoses: readonly HandPose[] = NO_HAND;
 let handShown = true;
+/** PROTOTYPE: the prototype has picked the Hand up and draws it itself. */
+let handHeld = false;
 /** The Roll in the Tray, until its rules are done. `dice` is in Tray order, as the engine counts them. */
 let rolling: { plan: RollPlan; engine: RollEngine; dice: TrayDie[] } | undefined;
 /** The Dropped dice of the last finished Roll, dimmed until the next Roll. */
@@ -96,7 +103,7 @@ canvas.addEventListener("pointerdown", (event) => {
   const die = renderer.dieAt(event.clientX, event.clientY);
   let grabbed: TrayDie | "hand";
   if (rolling && die?.cocked) grabbed = die;
-  else if (overHand(point)) grabbed = "hand";
+  else if (!prototypeActive && overHand(point)) grabbed = "hand";
   else return;
   canvas.setPointerCapture(event.pointerId);
   gesture = {
@@ -111,7 +118,7 @@ canvas.addEventListener("pointerdown", (event) => {
 
 canvas.addEventListener("pointermove", (event) => {
   if (!gesture) {
-    canvas.style.cursor = cursorAt(event.clientX, event.clientY);
+    if (!prototypeActive) canvas.style.cursor = cursorAt(event.clientX, event.clientY);
     return;
   }
   if (event.pointerId !== gesture.pointerId) return;
@@ -225,6 +232,18 @@ function throwFollowUps(dice: TrayDie[], step: Extract<RollStep, { kind: "throw"
   for (const i of step.rethrow) rethrow(dice[i]);
   for (const definition of step.add) dice.push(throwExtra(definition));
 }
+
+prototype?.start({
+  canvas,
+  sim,
+  renderer,
+  handPoses: () => handPoses,
+  handThrowable,
+  gestureActive: () => gesture !== undefined,
+  setHandHeld: (held) => (handHeld = held),
+  throwHand: (throws) => throwHand(() => throws),
+});
+
 let last = performance.now();
 let accumulator = 0;
 
@@ -265,7 +284,7 @@ function frame(now: number) {
     breakdownEl.textContent = "";
   }
 
-  renderer.render(sim.trayDice, handShown ? handPoses : NO_HAND, droppedDice, handOffset);
+  renderer.render(sim.trayDice, handShown && !handHeld ? handPoses : NO_HAND, droppedDice, handOffset);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
