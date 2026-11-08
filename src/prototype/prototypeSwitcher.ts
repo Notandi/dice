@@ -62,6 +62,18 @@ const CSS = `
   .ts-option { font-size: 14px; }
   .ts-how { font-size: 13px; }
 }
+/* Short phones: no room for the explanation line above the Tray. */
+@media (max-width: 640px) and (max-height: 620px) {
+  .ts-how { display: none; }
+}
+/* Short landscape screens: a single row at the top of the controls column, beside the History button. */
+@media (max-height: 500px) and (min-aspect-ratio: 3/2) {
+  .ts-card { top: 8px; left: auto; right: 60px; transform: none; width: calc(var(--side-width) - 72px);
+    gap: 6px 2px; grid-template-areas: "options gear" "drawer drawer"; }
+  .ts-head, .ts-how { display: none; }
+  .ts-option { height: 36px; line-height: 36px; font-size: 14px; }
+  .ts-drawer { max-height: calc(100dvh - 80px); }
+}
 `;
 
 /** Mounts the card. Returns the tuning drawer to fill, and where to show the last throw's numbers. */

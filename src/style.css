@@ -21,50 +21,45 @@ body {
   overflow: hidden;
 }
 
+/*
+ * Layout: the Tray is drawn in whatever room the controls leave, never under
+ * them, so the Hand waiting at its near edge is never covered. The controls
+ * sit below the Tray, or beside it on short landscape screens (see the end).
+ */
 body {
   height: 100dvh; /* the visible height on phones, without the browser's toolbars */
-}
-
-body {
+  display: flex;
+  flex-direction: column;
   background: radial-gradient(ellipse 60% 55% at 50% 48%, var(--ground-hi), var(--ground) 78%) var(--ground);
 }
 
 #tray {
   display: block;
   touch-action: none; /* the Tray handles drags itself, so the Hand can be flung on touch screens */
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
   width: 100%;
-  height: 100%;
 }
 
+/* Narrow screens: the Result above the Hand controls. */
 #overlay {
-  position: fixed;
-  inset: auto 0 0 0;
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 24px 48px;
-  padding: 0 32px 32px;
-  pointer-events: none; /* let clicks through to the Tray, e.g. on a Cocked Die */
-}
-
-#overlay > * {
-  pointer-events: auto;
-}
-
-/* Balances the Result on the left, so the Hand controls sit in the middle. */
-#overlay::after {
-  content: "";
-  flex: 0 0 200px;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px 24px;
 }
 
 #result {
-  flex: 0 0 200px;
+  flex: none;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  text-align: right;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
 }
 
 #natural {
@@ -93,7 +88,12 @@ body {
 
 #breakdown {
   min-height: 1.4em;
+  /* A 50-dice Breakdown scrolls rather than pushing the Tray off the screen. */
+  max-height: 2.8em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   font-size: 14px;
+  line-height: 1.4;
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -109,8 +109,8 @@ body {
 }
 
 #hand-controls {
-  flex: 0 1 600px;
-  min-width: 0;
+  flex: none;
+  width: min(600px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -124,10 +124,10 @@ body {
   gap: 10px;
 }
 
+/* One row at every size: the field gives up width before Clear and Roll wrap. */
 #notation-row {
   width: 100%;
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -205,7 +205,7 @@ button:focus-visible,
 }
 
 #notation {
-  flex: 1 1 260px;
+  flex: 1 1 0;
   min-width: 0;
   height: 52px;
   box-sizing: border-box;
@@ -341,41 +341,72 @@ button:focus-visible,
 }
 
 /*
- * Phones: the Result sits above the Hand controls, and there is no room for the History.
- * The Tray is drawn above the controls, not under them, so the Hand at its near edge stays in view.
+ * Below desktop widths, and on short landscape screens, the History is
+ * hidden behind a button, as there's no room to show it beside the Tray.
  */
+@media (max-width: 1023px), (max-height: 500px) and (min-aspect-ratio: 3/2) {
+  #history-toggle {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 40;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: transparent;
+    color: var(--ink-soft);
+  }
+
+  #history-toggle[aria-expanded="true"] {
+    color: var(--gold);
+    background: rgb(232 176 74 / 0.12);
+  }
+
+  #history-panel {
+    display: none;
+    z-index: 40;
+    top: 76px;
+    right: 16px;
+    width: min(320px, calc(100% - 32px));
+    max-height: 50vh;
+    box-sizing: border-box;
+    padding: 14px 16px 6px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgb(22 26 35 / 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  }
+
+  #history-panel.open,
+  #history-panel.open:has(#history:empty) {
+    display: flex;
+  }
+
+  #history-empty {
+    display: block;
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  #history:not(:empty) + #history-empty {
+    display: none;
+  }
+}
+
+/* Phones in portrait: smaller controls, and the seven Die Type buttons share one row. */
 @media (max-width: 640px) {
   body {
-    display: flex;
-    flex-direction: column;
     background: radial-gradient(ellipse 90% 50% at 50% 42%, var(--ground-hi), var(--ground) 80%) var(--ground);
   }
 
-  #tray {
-    flex: 1 1 0;
-    min-height: 0;
-    height: auto;
-  }
-
   #overlay {
-    position: static;
-    flex: none;
-    flex-direction: column;
-    flex-wrap: nowrap;
     align-items: stretch;
-    gap: 16px;
     padding: 0 16px 24px;
-  }
-
-  #overlay::after {
-    display: none;
-  }
-
-  #result {
-    flex: none;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
   }
 
   #total {
@@ -384,10 +415,6 @@ button:focus-visible,
 
   #breakdown {
     font-size: 13px;
-  }
-
-  #hand-controls {
-    flex: none;
   }
 
   /* One row that shares out the width, so all seven fit even on a 320px-wide phone. */
@@ -416,15 +443,13 @@ button:focus-visible,
   }
 
   #notation-row {
-    flex-wrap: nowrap;
     gap: 8px;
   }
 
   #notation {
-    flex: 1 1 auto;
     height: 50px;
     padding: 0 18px;
-    font-size: 16px;
+    font-size: 16px; /* 16px or more, so iOS doesn't zoom in on focus */
   }
 
   #clear {
@@ -440,55 +465,223 @@ button:focus-visible,
   }
 
   #history-toggle {
-    position: fixed;
     top: 16px;
     right: 56px; /* beside the Throw style card's tuning button */
-    z-index: 40;
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    background: transparent;
-    color: var(--ink-soft);
-  }
-
-  #history-toggle[aria-expanded="true"] {
-    color: var(--gold);
-    background: rgb(232 176 74 / 0.12);
   }
 
   #history-panel {
-    display: none;
-    z-index: 40;
     top: 68px;
     right: 12px;
-    width: auto;
     left: 12px;
-    max-height: 50vh;
+    width: auto;
+  }
+}
+
+/* Wider screens: the controls in one row, the Result on their left. */
+@media (min-width: 760px) {
+  #overlay {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 40px;
+    padding: 0 32px 28px;
+  }
+
+  /* Balances the Result on the left, so the Hand controls sit in the middle where there's room. */
+  #overlay::after {
+    content: "";
+    flex: 0 1 200px;
+  }
+
+  #result {
+    flex: 0 1 200px;
+    min-width: 120px;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+  }
+
+  #breakdown {
+    max-height: 4.2em;
+  }
+
+  #hand-controls {
+    flex: 0 1 600px;
+    width: auto;
+    min-width: 452px; /* the seven Die Type buttons in one row */
+  }
+}
+
+/* Laptops and short windows: a smaller Total, to leave the Tray more height. */
+@media (min-width: 760px) and (max-height: 760px) {
+  #total {
+    font-size: 60px;
+  }
+
+  #overlay {
+    padding-bottom: 20px;
+  }
+
+  #hand-controls {
+    gap: 10px;
+  }
+}
+
+/*
+ * Short landscape screens (phones on their side, short windows): there's no
+ * height to spare below the Tray, so the controls go in a column on its right.
+ */
+@media (max-height: 500px) and (min-aspect-ratio: 3/2) {
+  :root {
+    --side-width: clamp(260px, 40vw, 380px);
+  }
+
+  body {
+    flex-direction: row;
+    background: radial-gradient(ellipse 45% 70% at 32% 50%, var(--ground-hi), var(--ground) 80%) var(--ground);
+  }
+
+  #overlay {
+    flex: 0 0 var(--side-width);
     box-sizing: border-box;
-    padding: 14px 16px 6px;
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    background: rgb(22 26 35 / 0.94);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    /* Room at the top for the Throw style card and the History button. */
+    padding: 64px 12px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
-  #history-panel.open,
-  #history-panel.open:has(#history:empty) {
-    display: flex;
+  #overlay::after {
+    content: none;
   }
 
-  #history-empty {
-    display: block;
-    margin: 0 0 10px;
+  #result {
+    flex: none;
+    min-width: 0;
+    margin-top: auto; /* the controls sit at the bottom, by the thumbs */
+    align-items: center;
+    gap: 0;
+    text-align: center;
+  }
+
+  #natural {
+    font-size: 11px;
+  }
+
+  #total {
+    font-size: 44px;
+  }
+
+  #breakdown {
+    max-height: 2.8em;
+    font-size: 12px;
+  }
+
+  #hand-controls {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  #die-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #die-buttons button {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    max-width: none;
+    aspect-ratio: auto;
+    font-size: 13px;
+  }
+
+  #notation-row {
+    gap: 6px;
+  }
+
+  #notation {
+    height: 44px;
+    padding: 0 14px;
+    font-size: 16px;
+  }
+
+  #clear {
+    height: 44px;
+    padding: 0 12px;
     font-size: 14px;
-    color: var(--ink-muted);
   }
 
-  #history:not(:empty) + #history-empty {
-    display: none;
+  #roll {
+    height: 44px;
+    padding: 0 18px;
+    font-size: 15px;
+    box-shadow: 0 4px 14px rgb(232 176 74 / 0.24);
+  }
+
+  #notation-error {
+    margin-top: -4px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
+
+  #notation-error:empty {
+    min-height: 0;
+  }
+
+  #history-toggle {
+    top: 8px;
+    right: 12px;
+  }
+
+  #history-panel {
+    top: 60px;
+    right: 12px;
+    left: auto;
+    width: calc(var(--side-width) - 24px);
+    max-height: calc(100% - 72px);
+  }
+}
+
+/* A wider side column: all seven Die Type buttons fit in one row, sharing out its width. */
+@media (max-height: 500px) and (min-aspect-ratio: 3/2) and (min-width: 820px) {
+  #die-buttons {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  #die-buttons button {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 48px;
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+  }
+}
+
+/* Short phones (small screens, or the browser's toolbars showing): tighter, to keep the Tray in view. */
+@media (max-width: 640px) and (max-height: 620px) {
+  #overlay {
+    gap: 10px;
+    padding-bottom: 16px;
+  }
+
+  #total {
+    font-size: 48px;
+  }
+
+  #hand-controls {
+    gap: 10px;
+  }
+
+  #notation,
+  #clear,
+  #roll {
+    height: 46px;
   }
 }
