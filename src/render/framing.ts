@@ -14,8 +14,8 @@ const MAX_FOV = 150;
  * Sets the camera's field of view so the whole Tray, walls included, is in
  * view: the base field of view where it fits, otherwise the narrowest one
  * that fits, so on a portrait phone the Tray fills the screen's width.
- * With `atBottom`, the room that leaves above and below goes above, so the
- * Tray's near edge, where the Hand waits, sits by controls drawn below it.
+ * With `atBottom`, any room above and below the Tray goes above it, so its
+ * near edge, where the Hand waits, sits by controls drawn below it.
  */
 export function frameTray(camera: THREE.PerspectiveCamera, tray: TrayDimensions, atBottom = false): void {
   camera.clearViewOffset();
@@ -28,17 +28,16 @@ export function frameTray(camera: THREE.PerspectiveCamera, tray: TrayDimensions,
     return onScreen().every((p) => Math.abs(p.x) <= FILL && Math.abs(p.y) <= FILL);
   };
 
-  if (fits(BASE_FOV)) return;
-
-  let low = BASE_FOV;
-  let high = MAX_FOV;
-  for (let i = 0; i < 30; i++) {
-    const mid = (low + high) / 2;
-    if (fits(mid)) high = mid;
-    else low = mid;
+  if (!fits(BASE_FOV)) {
+    let low = BASE_FOV;
+    let high = MAX_FOV;
+    for (let i = 0; i < 30; i++) {
+      const mid = (low + high) / 2;
+      if (fits(mid)) high = mid;
+      else low = mid;
+    }
+    fits(high);
   }
-  camera.fov = high;
-  camera.updateProjectionMatrix();
   if (!atBottom) return;
 
   // Slide the view up by the room below the Tray (screen heights run -1 to 1, so half of it).

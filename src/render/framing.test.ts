@@ -56,6 +56,13 @@ describe("frameTray", () => {
     expect(Math.max(...corners.map((c) => c.y))).toBeLessThan(0.5);
   });
 
+  it("puts the Tray at the bottom of a short, wide canvas too, where it fits without widening", () => {
+    const camera = cameraAt(1.8);
+    frameTray(camera, TRAY, true);
+    expect(camera.fov).toBe(40);
+    expect(Math.min(...trayCornersOnScreen(camera).map((c) => c.y))).toBeLessThan(-0.9);
+  });
+
   it("goes back to the plain view when the screen turns wide again", () => {
     const camera = cameraAt(0.6);
     frameTray(camera, TRAY, true);
