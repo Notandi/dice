@@ -1,15 +1,28 @@
 :root {
   color-scheme: dark;
-  font-family: system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
+  --ink: #f3f1ec;
+  --ink-soft: #c9ced9;
+  --ink-muted: #a9b0bf;
+  --ground: #161a23;
+  --ground-hi: #2b3345;
+  --line: rgb(255 255 255 / 0.1);
+  --field: rgb(255 255 255 / 0.06);
+  --gold: #e8b04a;
+  --gold-soft: #f0c36e;
+  --gold-ink: #1a1408;
 }
 
 html,
 body {
   margin: 0;
   height: 100%;
-  background: #20262e;
-  color: #f4efe3;
+  color: var(--ink);
   overflow: hidden;
+}
+
+body {
+  background: radial-gradient(ellipse 60% 55% at 50% 48%, var(--ground-hi), var(--ground) 78%) var(--ground);
 }
 
 #tray {
@@ -26,8 +39,8 @@ body {
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: center;
-  gap: 16px 32px;
-  padding: 16px;
+  gap: 24px 48px;
+  padding: 0 32px 32px;
   pointer-events: none; /* let clicks through to the Tray, e.g. on a Cocked Die */
 }
 
@@ -35,14 +48,38 @@ body {
   pointer-events: auto;
 }
 
+/* Balances the Result on the left, so the Hand controls sit in the middle. */
+#overlay::after {
+  content: "";
+  flex: 0 0 200px;
+}
+
 #result {
-  min-width: 6ch;
-  text-align: center;
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+#natural {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+
+#natural[hidden] {
+  display: none;
 }
 
 #total {
-  font-size: 48px;
-  font-weight: 700;
+  font-size: 76px;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -52,8 +89,8 @@ body {
 
 #breakdown {
   min-height: 1.4em;
-  font-size: 15px;
-  opacity: 0.8;
+  font-size: 14px;
+  color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -64,19 +101,30 @@ body {
 
 .exploded {
   font-weight: 600;
+  color: var(--ink);
 }
 
 #hand-controls {
+  flex: 0 1 600px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 14px;
 }
 
-#die-buttons,
-#notation-row {
+#die-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+}
+
+#notation-row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 button {
@@ -95,26 +143,69 @@ button:disabled {
   cursor: default;
 }
 
+button:focus-visible,
+#notation:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 #die-buttons button {
-  min-width: 3.5em;
-  padding: 8px 12px;
-  font-size: 16px;
-  font-weight: 600;
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid var(--die-colour);
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.15s, color 0.15s;
+}
+
+#die-buttons button:hover {
+  background: color-mix(in srgb, var(--die-colour) 18%, transparent);
+}
+
+#die-buttons button.in-hand {
   background: var(--die-colour);
   color: var(--die-ink);
 }
 
+/* How many of this Die Type are in the Hand. */
+#die-buttons button[data-count]::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: var(--ground);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 22px;
+  text-align: center;
+}
+
 #notation {
-  flex: 1;
-  min-width: 12ch;
-  font: inherit;
+  flex: 1 1 260px;
+  min-width: 0;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 0 22px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 18px;
-  font-family: ui-monospace, monospace;
-  padding: 10px 16px;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: #343c47;
-  color: #f4efe3;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: var(--field);
+  color: var(--ink);
+}
+
+#notation::placeholder {
+  color: var(--ink-muted);
 }
 
 #notation[aria-invalid="true"] {
@@ -122,32 +213,48 @@ button:disabled {
 }
 
 #notation-error {
+  width: 100%;
   min-height: 1.3em;
-  padding: 0 16px;
+  margin-top: -6px;
+  padding: 0 22px;
+  box-sizing: border-box;
   font-size: 14px;
   color: #f0907f;
 }
 
 #clear {
-  padding: 10px 18px;
-  font-size: 16px;
-  background: #343c47;
-  color: #f4efe3;
+  height: 52px;
+  padding: 0 22px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  background: transparent;
+  color: var(--ink);
+}
+
+#clear:hover {
+  background: var(--field);
 }
 
 #roll {
-  font-size: 20px;
-  font-weight: 600;
-  padding: 10px 32px;
-  background: #e8b04a;
-  color: #20262e;
+  height: 52px;
+  padding: 0 40px;
+  font-size: 17px;
+  font-weight: 800;
+  background: var(--gold);
+  color: var(--gold-ink);
+  box-shadow: 0 8px 24px rgb(232 176 74 / 0.28);
+}
+
+#roll:disabled {
+  box-shadow: none;
 }
 
 #history-panel {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  width: min(280px, calc(100% - 32px));
+  top: 24px;
+  right: 32px;
+  width: min(260px, calc(100% - 64px));
   max-height: 40vh;
   display: flex;
   flex-direction: column;
@@ -158,12 +265,12 @@ button:disabled {
 }
 
 #history-heading {
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: 0 0 6px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.7;
+  letter-spacing: 0.16em;
+  color: var(--ink-muted);
 }
 
 #history {
@@ -171,48 +278,194 @@ button:disabled {
   padding: 0;
   list-style: none;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 #history button {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px 12px;
-  padding: 8px 14px;
-  border-radius: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
   text-align: left;
-  background: rgb(52 60 71 / 0.85);
-  color: #f4efe3;
+  background: transparent;
+  color: var(--ink-soft);
 }
 
-#history button:hover {
-  background: #434c59;
+#history li:first-child button {
+  color: var(--ink);
+}
+
+#history button:hover /* Only shown on phones, where the History is opened with a button. */
+#history-toggle,
+#history-empty {
+  display: none;
 }
 
 .history-notation {
-  font-family: ui-monospace, monospace;
+  text-decoration: underline;
+}
+
+/* Only shown on phones, where the History is opened with a button. */
+#history-toggle,
+#history-empty {
+  display: none;
+}
+
+.history-notation {
+  font-size: 14px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .history-total {
-  font-size: 18px;
+  grid-row: span 2;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .history-breakdown {
-  grid-column: 1 / -1;
-  font-size: 13px;
-  opacity: 0.75;
+  font-size: 12px;
+  color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* Phones have no room for the History beside the Tray. */
+/* Phones: the Result sits above the Hand controls, and there is no room for the History. */
 @media (max-width: 640px) {
+  body {
+    background: radial-gradient(ellipse 90% 50% at 50% 42%, var(--ground-hi), var(--ground) 80%) var(--ground);
+  }
+
+  #overlay {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 16px;
+    padding: 0 16px 24px;
+  }
+
+  #overlay::after {
+    display: none;
+  }
+
+  #result {
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+  }
+
+  #total {
+    font-size: 64px;
+  }
+
+  #breakdown {
+    font-size: 13px;
+  }
+
+  #hand-controls {
+    flex: none;
+  }
+
+  #die-buttons {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  #die-buttons button {
+    width: 46px;
+    height: 46px;
+    font-size: 13px;
+  }
+
+  #die-buttons button[data-count]::after {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    font-size: 11px;
+    line-height: 20px;
+  }
+
+  #notation-row {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  #notation {
+    flex: 1 1 auto;
+    height: 50px;
+    padding: 0 18px;
+    font-size: 16px;
+  }
+
+  #clear {
+    height: 50px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  #roll {
+    height: 50px;
+    padding: 0 26px;
+    font-size: 16px;
+  }
+
+  #history-toggle {
+    position: fixed;
+    top: 16px;
+    right: 56px; /* beside the Throw style card's tuning button */
+    z-index: 40;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: transparent;
+    color: var(--ink-soft);
+  }
+
+  #history-toggle[aria-expanded="true"] {
+    color: var(--gold);
+    background: rgb(232 176 74 / 0.12);
+  }
+
   #history-panel {
+    display: none;
+    z-index: 40;
+    top: 68px;
+    right: 12px;
+    width: auto;
+    left: 12px;
+    max-height: 50vh;
+    box-sizing: border-box;
+    padding: 14px 16px 6px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgb(22 26 35 / 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  }
+
+  #history-panel.open,
+  #history-panel.open:has(#history:empty) {
+    display: flex;
+  }
+
+  #history-empty {
+    display: block;
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  #history:not(:empty) + #history-empty {
     display: none;
   }
 }

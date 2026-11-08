@@ -1,4 +1,4 @@
-import { ROLLED_DIE_TYPES } from "../dice/dieTypes";
+import { ROLLED_DIE_TYPES, type RolledDieType } from "../dice/dieTypes";
 import { addDie, EMPTY_PLAN, formatNotation, parseNotation, type RollPlan } from "../notation/diceNotation";
 import { refusal } from "../roll/roll";
 
@@ -18,6 +18,7 @@ export interface HandElements {
 export class HandControls {
   private current: RollPlan = EMPTY_PLAN;
   private valid = true;
+  private readonly buttons = new Map<RolledDieType, HTMLButtonElement>();
 
   constructor(
     private readonly el: HandElements,
@@ -32,7 +33,9 @@ export class HandControls {
       button.style.setProperty("--die-ink", dieType.dice[0].inkColour);
       button.addEventListener("click", () => this.add(addDie(this.current, dieType)));
       el.dieButtons.append(button);
+      this.buttons.set(dieType, button);
     }
+    this.showCounts();
     el.notation.addEventListener("input", () => this.typed());
     el.clear.addEventListener("click", () => this.replace(EMPTY_PLAN, true));
   }
@@ -72,7 +75,25 @@ export class HandControls {
     if (rewrite) this.el.notation.value = formatNotation(plan);
     this.el.notation.removeAttribute("aria-invalid");
     this.showError("");
+    this.showCounts();
     this.onChange();
+  }
+
+  /** Marks each Die Type button with how many of its dice the Hand adds. */
+  private showCounts(): void {
+    for (const [dieType, button] of this.buttons) {
+      const count = this.current.terms.reduce(
+        (sum, t) => (t.kind === "dice" && t.sign > 0 && t.dieType === dieType ? sum + t.count : sum),
+        0,
+      );
+      button.classList.toggle("in-hand", count > 0);
+      if (count > 0) button.dataset.count = String(count);
+      else delete button.dataset.count;
+      button.setAttribute(
+        "aria-label",
+        count > 0 ? `Add a ${dieType.name}, ${count} in the Hand` : `Add a ${dieType.name}`,
+      );
+    }
   }
 
   private invalid(message: string): void {

@@ -2,11 +2,12 @@ import type { DieDefinition, Vec3 } from "./dice/types";
 import { HandControls } from "./hand/handControls";
 import { handAsLeft, handContains, handLayout, type HandPose } from "./hand/handLayout";
 import { History } from "./history/history";
-import { renderHistory } from "./history/historyList";
+import { historyToggle, renderHistory } from "./history/historyList";
 import type { RollPlan } from "./notation/diceNotation";
 import { Renderer } from "./render/renderer";
 import { diceNeeded, diceToThrow, RollEngine, type RollStep } from "./roll/roll";
 import { renderBreakdown } from "./roll/breakdownView";
+import { natural } from "./roll/natural";
 import { autoRethrow, autoThrow } from "./tray/autoThrower";
 import { flingRethrow, flingThrow, releaseVelocity, type GestureSample } from "./tray/flingThrower";
 import { TIMESTEP, TraySimulation, type Throw, type TrayDie } from "./tray/traySimulation";
@@ -32,6 +33,8 @@ const rollButton = $<HTMLButtonElement>("#roll");
 const totalEl = $("#total");
 const breakdownEl = $("#breakdown");
 const historyEl = $("#history");
+const naturalEl = $("#natural");
+const historyPanel = historyToggle($("#history-toggle"), $("#history-panel"));
 
 // PROTOTYPE (throw feel, #7): `?variant=` swaps in a throwaway throw style. It ships on
 // the live site on purpose so people can try every style; remove once one is chosen.
@@ -92,6 +95,7 @@ function throwHand(throwsFor: (dice: DieDefinition[]) => Throw[] | undefined): v
   droppedDice = NONE_DROPPED;
   totalEl.textContent = "…";
   totalEl.classList.add("pending");
+  naturalEl.hidden = true;
   breakdownEl.textContent = "";
 }
 
@@ -284,7 +288,13 @@ function frame(now: number) {
         totalEl.textContent = String(entry.total);
         totalEl.classList.remove("pending");
         renderBreakdown(breakdownEl, entry.breakdown);
-        renderHistory(historyEl, history.entries, (entry) => hand.load(entry.plan));
+        const nat = natural(entry.breakdown);
+        naturalEl.textContent = nat ?? "";
+        naturalEl.hidden = !nat;
+        renderHistory(historyEl, history.entries, (entry) => {
+          hand.load(entry.plan);
+          historyPanel.close();
+        });
         if (finished.plan === hand.plan) {
           // Ready to throw the same dice again, from where they lie. Dice added by Explodes
           // come after the Hand's own, and are left out.
