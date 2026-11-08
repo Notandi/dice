@@ -33,7 +33,7 @@ const CSS = `
 .ts-gear:hover { color: #f3f1ec; background: rgba(255, 255, 255, 0.06); }
 .ts-gear[aria-expanded="true"] { color: #e8b04a; background: rgba(232, 176, 74, 0.12); }
 .ts-gear:focus-visible, .ts-option:focus-visible, .ts-copy:focus-visible { outline: 2px solid #e8b04a; outline-offset: 2px; }
-.ts-options { grid-area: options; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 4px;
+.ts-options { grid-area: options; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 999px; background: rgba(255, 255, 255, 0.05); }
 .ts-option { all: unset; cursor: pointer; text-align: center; height: 40px; line-height: 40px; border-radius: 999px;
   font-size: 15px; font-weight: 600; color: #c9ced9; transition: background 0.2s, color 0.2s; }
@@ -54,7 +54,6 @@ const CSS = `
   font-size: 13px; background: rgba(232, 176, 74, 0.16); color: #f0c36e; }
 .ts-copy:hover { background: rgba(232, 176, 74, 0.26); }
 .ts-stats { margin: 0; font: 12px/1.4 ui-monospace, monospace; color: #a9b0bf; white-space: pre-wrap; }
-.ts-empty { margin: 0 0 8px; color: #a9b0bf; font-size: 13px; }
 @media (max-width: 640px) {
   .ts-card { top: 16px; gap: 8px 0; grid-template-areas: "head gear" "options options" "how how" "drawer drawer"; }
   .ts-head { justify-content: flex-start; padding-left: 8px; }
