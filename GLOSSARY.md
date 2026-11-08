@@ -72,6 +72,10 @@ _Avoid_: Hit
 A Face Value meeting a failure condition that subtracts 1 from a success-counting Total.
 _Avoid_: Miss, botch
 
+**Natural 20 / Natural 1**:
+A d20 that counts toward the Total showing 20, or 1; called out above the Total. A Natural 20 wins over a Natural 1, and Dropped d20s don't count.
+_Avoid_: Crit, critical, fumble
+
 **Breakdown**:
 The per-die listing of a Roll showing each Face Value, which were Dropped, and the Modifiers.
 _Avoid_: Details, log line

@@ -4,16 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dice</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <canvas id="tray"></canvas>
+    <button id="history-toggle" type="button" aria-label="History" aria-controls="history-panel" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5M3.5 4v4.5H8M12 7.5V12l3 2" />
+      </svg>
+    </button>
     <section id="history-panel" aria-labelledby="history-heading">
       <h2 id="history-heading">History</h2>
       <ol id="history"></ol>
+      <p id="history-empty">No Rolls yet.</p>
     </section>
     <div id="overlay">
       <div id="result" aria-live="polite">
+        <div id="natural" hidden></div>
         <div id="total">–</div>
         <div id="breakdown"></div>
       </div>

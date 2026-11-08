@@ -23,6 +23,8 @@ export type BreakdownPart =
   | {
       kind: "dice";
       sign: 1 | -1;
+      /** The group's Die Type, e.g. `d20`. */
+      dieType: string;
       notation: string;
       dice: DieResult[];
       /** A Die showed its maximum but couldn't Explode: the Roll hit the explosion cap or the dice limit. */
@@ -160,6 +162,7 @@ export class RollEngine {
       return {
         kind: "dice",
         sign: term.sign,
+        dieType: term.dieType.name,
         notation: formatDice(term),
         dice: group.dice.map(({ rerolled, exploded }, i) => ({ value: values[i], rerolled, exploded, dropped: dropped.has(i) })),
         explosionsCapped: group.explosionsCapped,

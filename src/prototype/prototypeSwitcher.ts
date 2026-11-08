@@ -16,44 +16,53 @@ const NOTATION_KEY = "prototype-throw-style-notation";
 
 const CSS = `
 .ts-card {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
-  width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
-  padding: 10px; border-radius: 18px;
-  background: rgba(17, 21, 26, 0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(244, 239, 227, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  color: #f4efe3; font: 14px/1.35 system-ui, sans-serif;
+  position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 30;
+  width: min(420px, calc(100vw - 24px)); box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  grid-template-areas: "head head" "options gear" "how how" "drawer drawer";
+  gap: 10px 6px; color: #f3f1ec; font: 14px/1.35 "Inter", system-ui, sans-serif;
   transition: opacity 0.15s;
 }
 .ts-card.ts-leaving { opacity: 0.5; }
-.ts-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; }
-.ts-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
-.ts-badge { margin-left: 8px; padding: 1px 6px; border-radius: 999px; font-size: 10px; letter-spacing: 0.06em;
-  background: rgba(232, 176, 74, 0.16); color: #e8b04a; }
-.ts-gear { all: unset; cursor: pointer; width: 28px; height: 28px; display: grid; place-items: center;
-  border-radius: 50%; opacity: 0.7; transition: opacity 0.15s, background 0.15s, color 0.15s; }
-.ts-gear:hover { opacity: 1; background: rgba(244, 239, 227, 0.08); }
-.ts-gear[aria-expanded="true"] { opacity: 1; color: #e8b04a; background: rgba(232, 176, 74, 0.12); }
+.ts-head { grid-area: head; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ts-title { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #a9b0bf; }
+.ts-badge { padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: rgba(232, 176, 74, 0.16); color: #f0c36e; }
+.ts-gear { all: unset; grid-area: gear; cursor: pointer; width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 50%; color: #c9ced9; transition: background 0.15s, color 0.15s; }
+.ts-gear:hover { color: #f3f1ec; background: rgba(255, 255, 255, 0.06); }
+.ts-gear[aria-expanded="true"] { color: #e8b04a; background: rgba(232, 176, 74, 0.12); }
 .ts-gear:focus-visible, .ts-option:focus-visible, .ts-copy:focus-visible { outline: 2px solid #e8b04a; outline-offset: 2px; }
-.ts-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px;
-  border-radius: 999px; background: rgba(244, 239, 227, 0.06); }
-.ts-option { all: unset; cursor: pointer; text-align: center; padding: 8px 0; border-radius: 999px;
-  font-weight: 600; color: rgba(244, 239, 227, 0.75); transition: background 0.2s, color 0.2s; }
-.ts-option:hover { color: #f4efe3; background: rgba(244, 239, 227, 0.06); }
-.ts-option[aria-checked="true"] { background: #e8b04a; color: #20262e; box-shadow: 0 2px 8px rgba(232, 176, 74, 0.35); }
-.ts-how { margin: 8px 4px 0; min-height: 1.35em; opacity: 0.8; text-align: center; }
-.ts-drawer { margin-top: 10px; padding: 10px 4px 2px; border-top: 1px solid rgba(244, 239, 227, 0.1);
+.ts-options { grid-area: options; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 999px; background: rgba(255, 255, 255, 0.05); }
+.ts-option { all: unset; cursor: pointer; text-align: center; height: 40px; line-height: 40px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; color: #c9ced9; transition: background 0.2s, color 0.2s; }
+.ts-option:hover { color: #f3f1ec; background: rgba(255, 255, 255, 0.06); }
+.ts-option[aria-checked="true"] { background: #f3f1ec; color: #161a23; }
+.ts-how { grid-area: how; margin: 0; min-height: 1.35em; color: #a9b0bf; text-align: center; }
+.ts-drawer { grid-area: drawer; padding: 12px 14px 4px; border-radius: 18px;
+  background: rgba(22, 26, 35, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   max-height: min(36vh, 420px); overflow: auto; overscroll-behavior: contain; }
 .ts-drawer[hidden] { display: none; }
 .ts-slider { display: block; margin: 0 0 10px; font-size: 13px; }
-.ts-slider-head { display: flex; justify-content: space-between; opacity: 0.85; }
+.ts-slider-head { display: flex; justify-content: space-between; color: #c9ced9; }
 .ts-slider-value { font-variant-numeric: tabular-nums; color: #e8b04a; }
 .ts-slider input { width: 100%; margin: 4px 0 0; accent-color: #e8b04a; }
 .ts-foot { display: flex; align-items: flex-start; gap: 10px; margin-top: 4px; }
 .ts-copy { all: unset; cursor: pointer; flex: none; padding: 6px 14px; border-radius: 999px; font-weight: 600;
-  font-size: 13px; background: rgba(232, 176, 74, 0.16); color: #e8b04a; }
+  font-size: 13px; background: rgba(232, 176, 74, 0.16); color: #f0c36e; }
 .ts-copy:hover { background: rgba(232, 176, 74, 0.26); }
-.ts-stats { margin: 0; font: 12px/1.4 ui-monospace, monospace; opacity: 0.7; white-space: pre-wrap; }
-.ts-empty { margin: 0 0 8px; opacity: 0.7; font-size: 13px; }
+.ts-stats { margin: 0; font: 12px/1.4 ui-monospace, monospace; color: #a9b0bf; white-space: pre-wrap; }
+.ts-empty { margin: 0 0 8px; color: #a9b0bf; font-size: 13px; }
+@media (max-width: 640px) {
+  .ts-card { top: 16px; gap: 8px 0; grid-template-areas: "head gear" "options options" "how how" "drawer drawer"; }
+  .ts-head { justify-content: flex-start; padding-left: 8px; }
+  .ts-title { font-size: 11px; }
+  .ts-badge { display: none; }
+  .ts-option { font-size: 14px; }
+  .ts-how { font-size: 13px; }
+}
 `;
 
 /** Mounts the card. Returns the tuning drawer to fill, and where to show the last throw's numbers. */
@@ -68,14 +77,14 @@ export function mountSwitcher(styles: readonly ThrowStyle[], current: string) {
   card.setAttribute("aria-label", "Throw style");
   card.innerHTML = `
     <div class="ts-head">
-      <span><span class="ts-title">Throw style</span><span class="ts-badge">Try them out</span></span>
-      <button class="ts-gear" type="button" aria-label="Tune this throw style" aria-expanded="false">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/>
-          <circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-      </button>
+      <span class="ts-title">Throw style</span><span class="ts-badge">Try them out</span>
     </div>
     <div class="ts-options" role="radiogroup" aria-label="Throw style"></div>
+    <button class="ts-gear" type="button" aria-label="Tune this throw style" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+        stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/>
+        <circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    </button>
     <p class="ts-how"></p>
     <div class="ts-drawer" hidden></div>`;
   const options = card.querySelector<HTMLElement>(".ts-options")!;

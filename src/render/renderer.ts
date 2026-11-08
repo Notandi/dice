@@ -29,11 +29,11 @@ export class Renderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly tray: TrayDimensions,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.scene.background = new THREE.Color("#20262e");
+    // No background: the page's own shows around the Tray.
 
     this.camera.position.set(0, 11, 9);
     this.camera.lookAt(0, 0, 0.3);
