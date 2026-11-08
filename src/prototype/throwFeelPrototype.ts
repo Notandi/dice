@@ -6,13 +6,10 @@
  * the dice flat, its strength doesn't match the flick, the Hand snaps into a
  * grid on release, and grabbing it is fiddly.
  *
- * Plan: three throw styles plus the shipped one, on the real Tray, switchable
- * with `?variant=` (bottom bar or ← →), each tuned live with sliders. All
- * three pick the Hand up into a full-size bunch held high above the Tray, so
+ * Plan: two throw styles on the real Tray, switchable with `?variant=`
+ * (bottom bar or ← →), each tuned live with sliders. Both pick the Hand up into a full-size bunch held high above the Tray, so
  * nothing jumps on release, and take arc and spin from the throw itself.
  *
- *   current   "Drag": the shipped fling, for comparison
- *   toss      grab the Hand, it lifts under your finger; flick and let go
  *   shake     press anywhere, the dice gather under your finger and rattle
  *             as you shake; the shake adds spin; flick and let go
  *   sling     press anywhere and pull back; an arrow shows aim and power;
@@ -27,8 +24,6 @@ import { TRAY, type Throw, type TraySimulation } from "../tray/traySimulation";
 import { mountSwitcher } from "./prototypeSwitcher";
 
 const VARIANTS = [
-  { key: "current", name: "Drag", how: "Drag the Hand along the Tray and let go." },
-  { key: "toss", name: "Toss", how: "Grab the Hand to lift it, then flick and let go." },
   { key: "shake", name: "Shake", how: "Press anywhere to pick the dice up, shake, then flick." },
   { key: "sling", name: "Sling", how: "Press anywhere, pull back to aim, and let go." },
 ] as const;
@@ -84,12 +79,11 @@ export interface PrototypeHost {
 
 const variant = (): VariantKey => {
   const v = new URLSearchParams(location.search).get("variant");
-  return VARIANTS.some((x) => x.key === v) ? (v as VariantKey) : "current";
+  return VARIANTS.some((x) => x.key === v) ? (v as VariantKey) : "shake";
 };
 
-/** Called before the Tray is built. Returns true when a prototype variant replaces the shipped Hand fling. */
+/** Called before the Tray is built. Returns true because a prototype variant always replaces the shipped Hand fling. */
 export function prepare(): boolean {
-  if (variant() === "current") return false;
   TRAY.lidHeight = PROTOTYPE_LID; // raise the invisible lid so the Hand can be held high
   return true;
 }
@@ -108,7 +102,6 @@ interface Held {
 export function start(host: PrototypeHost): void {
   const current = variant();
   const panel = mountPanel(current);
-  if (current === "current") return;
 
   const { canvas, renderer } = host;
   // Reaching into the renderer is fine for a throwaway prototype.
@@ -136,7 +129,6 @@ export function start(host: PrototypeHost): void {
     const widest = Math.max(...poses.map((pose) => pose.definition.radius));
     const floor = pointAt(event.clientX, event.clientY, holdY(widest));
     if (!floor) return;
-    if (current === "toss" && !nearHand(poses, pointAt(event.clientX, event.clientY, 0.6))) return;
 
     const slots = bunch(poses.map((pose) => pose.definition));
     const dice = poses.map((pose, i) => {
@@ -334,11 +326,6 @@ function keepInside(centre: Vec3, dice: { slot: Vec3; definition: DieDefinition 
   return { x, y: centre.y, z };
 }
 
-function nearHand(poses: readonly HandPose[], point: Vec3 | undefined): boolean {
-  if (!point) return false;
-  return poses.some((pose) => Math.hypot(point.x - pose.position.x, point.z - pose.position.z) < 1.4);
-}
-
 function handHome(poses: readonly HandPose[], y: number): Vec3 {
   const n = poses.length;
   return {
@@ -361,14 +348,6 @@ function clamp(v: number, min: number, max: number): number {
 function mountPanel(current: VariantKey) {
   const card = mountSwitcher(VARIANTS, current);
   const { drawer } = card;
-
-  if (current === "current") {
-    const note = document.createElement("p");
-    note.className = "ts-empty";
-    note.textContent = "Drag is the style that ships today. Pick another style to tune it.";
-    drawer.append(note);
-    return { lastThrow() {} };
-  }
 
   for (const s of SLIDERS) {
     if (s.only && s.only !== current) continue;
