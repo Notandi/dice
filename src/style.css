@@ -22,6 +22,10 @@ body {
 }
 
 body {
+  height: 100dvh; /* the visible height on phones, without the browser's toolbars */
+}
+
+body {
   background: radial-gradient(ellipse 60% 55% at 50% 48%, var(--ground-hi), var(--ground) 78%) var(--ground);
 }
 
@@ -132,6 +136,9 @@ button {
   border: 0;
   border-radius: 999px;
   cursor: pointer;
+  /* Quick taps add a Die each, rather than zooming the page. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:active:not(:disabled) {
@@ -162,8 +169,15 @@ button:focus-visible,
   transition: background 0.15s, color 0.15s;
 }
 
-#die-buttons button:hover {
-  background: color-mix(in srgb, var(--die-colour) 18%, transparent);
+/* Only where a pointer can hover, so a tapped button doesn't stay lit on a phone. */
+@media (hover: hover) {
+  #die-buttons button:hover {
+    background: color-mix(in srgb, var(--die-colour) 18%, transparent);
+  }
+
+  #clear:hover {
+    background: var(--field);
+  }
 }
 
 #die-buttons button.in-hand {
@@ -232,10 +246,6 @@ button:focus-visible,
   color: var(--ink);
 }
 
-#clear:hover {
-  background: var(--field);
-}
-
 #roll {
   height: 52px;
   padding: 0 40px;
@@ -298,14 +308,10 @@ button:focus-visible,
   color: var(--ink);
 }
 
-#history button:hover /* Only shown on phones, where the History is opened with a button. */
-#history-toggle,
-#history-empty {
-  display: none;
-}
-
-.history-notation {
-  text-decoration: underline;
+@media (hover: hover) {
+  #history button:hover .history-notation {
+    text-decoration: underline;
+  }
 }
 
 /* Only shown on phones, where the History is opened with a button. */
@@ -334,13 +340,26 @@ button:focus-visible,
   font-variant-numeric: tabular-nums;
 }
 
-/* Phones: the Result sits above the Hand controls, and there is no room for the History. */
+/*
+ * Phones: the Result sits above the Hand controls, and there is no room for the History.
+ * The Tray is drawn above the controls, not under them, so the Hand at its near edge stays in view.
+ */
 @media (max-width: 640px) {
   body {
+    display: flex;
+    flex-direction: column;
     background: radial-gradient(ellipse 90% 50% at 50% 42%, var(--ground-hi), var(--ground) 80%) var(--ground);
   }
 
+  #tray {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+  }
+
   #overlay {
+    position: static;
+    flex: none;
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
@@ -371,17 +390,21 @@ button:focus-visible,
     flex: none;
   }
 
+  /* One row that shares out the width, so all seven fit even on a 320px-wide phone. */
   #die-buttons {
     width: 100%;
     flex-wrap: nowrap;
-    justify-content: space-between;
     gap: 4px;
   }
 
   #die-buttons button {
-    width: 46px;
-    height: 46px;
-    font-size: 13px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 52px;
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    font-size: min(13px, 3.4vw);
   }
 
   #die-buttons button[data-count]::after {

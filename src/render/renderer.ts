@@ -3,8 +3,8 @@ import type { Vec3 } from "../dice/types";
 import type { HandPose } from "../hand/handLayout";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
 import { createDieMesh, setDimmed } from "./dieMesh";
+import { BASE_FOV, frameTray, WALL_THICKNESS } from "./framing";
 
-const BASE_FOV = 40;
 const COCKED_COLOUR = "#ffd23f";
 /** How much bigger than its Die the Cocked highlight is drawn. */
 const COCKED_OUTLINE_SCALE = 1.15;
@@ -42,7 +42,8 @@ export class Renderer {
     this.addTray();
     this.scene.add(this.handGroup);
     this.resize();
-    window.addEventListener("resize", () => this.resize());
+    // The canvas, not the window: on a phone it shrinks when the controls below it grow.
+    new ResizeObserver(() => this.resize()).observe(canvas);
   }
 
   /**
@@ -58,8 +59,9 @@ export class Renderer {
   ): void {
     if (hand !== this.drawnHand) this.drawHand(hand);
     this.handGroup.position.set(handOffset.x, handOffset.y, handOffset.z);
+    const inTray = new Set(dice);
     for (const [die, mesh] of this.meshes) {
-      if (!dice.includes(die)) {
+      if (!inTray.has(die)) {
         this.scene.remove(mesh);
         this.meshes.delete(die);
         this.cockedOutlines.delete(die);
@@ -130,11 +132,12 @@ export class Renderer {
   private resize(): void {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     this.renderer.setSize(w, h, false);
+    if (w === 0 || h === 0) return;
     this.camera.aspect = w / h;
-    // Keep the whole Tray in view on narrow (portrait) screens too.
-    const trayAspect = (this.tray.width + 2) / (this.tray.depth + 4);
-    this.camera.fov = this.camera.aspect < trayAspect ? BASE_FOV * (trayAspect / this.camera.aspect) : BASE_FOV;
-    this.camera.updateProjectionMatrix();
+    // Keep the whole Tray in view on narrow (portrait) screens too. Where the controls
+    // are laid out below the canvas (on phones), the Tray sits down by them.
+    const controlsBelow = this.canvas.getBoundingClientRect().bottom < window.innerHeight - 1;
+    frameTray(this.camera, this.tray, controlsBelow);
   }
 
   private addLights(): void {
@@ -142,7 +145,9 @@ export class Renderer {
     const sun = new THREE.DirectionalLight("#ffffff", 2);
     sun.position.set(-4, 12, 6);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    // A smaller shadow map on small screens, where the detail can't be seen, to keep large Rolls smooth.
+    const shadowSize = Math.min(window.screen.width, window.screen.height) < 700 ? 1024 : 2048;
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     const shadowCamera = sun.shadow.camera;
     shadowCamera.left = -8;
     shadowCamera.right = 8;
@@ -153,7 +158,7 @@ export class Renderer {
 
   private addTray(): void {
     const { width, depth, wallHeight } = this.tray;
-    const thickness = 0.4;
+    const thickness = WALL_THICKNESS;
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(width, depth),
