@@ -1,9 +1,11 @@
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { Vec3 } from "../dice/types";
 import type { HandPose } from "../hand/handLayout";
 import type { TrayDie, TrayDimensions } from "../tray/traySimulation";
 import { createDieMesh, setDimmed } from "./dieMesh";
 import { BASE_FOV, frameTray, WALL_THICKNESS } from "./framing";
+import { feltMaterial, woodMaterial } from "./trayMaterials";
 
 const COCKED_COLOUR = "#ffd23f";
 /** How much bigger than its Die the Cocked highlight is drawn. */
@@ -32,7 +34,9 @@ export class Renderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Keeps the highlights on the glossy dice from burning out, without shifting their colours.
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
     // No background: the page's own shows around the Tray.
 
     this.camera.position.set(0, 11, 9);
@@ -141,10 +145,18 @@ export class Renderer {
   }
 
   private addLights(): void {
-    this.scene.add(new THREE.HemisphereLight("#ffffff", "#3a3f48", 1.2));
-    const sun = new THREE.DirectionalLight("#ffffff", 2);
+    // A softly lit room around the Tray, for the dice to reflect.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
+    pmrem.dispose();
+    this.scene.environmentIntensity = 0.4;
+
+    this.scene.add(new THREE.HemisphereLight("#ffffff", "#3a3f48", 0.5));
+    const sun = new THREE.DirectionalLight("#fff4e0", 2.2);
     sun.position.set(-4, 12, 6);
     sun.castShadow = true;
+    // The bevels are shaded smoothly, so nudge shadows off the surface to keep them clean.
+    sun.shadow.normalBias = 0.02;
     // A smaller shadow map on small screens, where the detail can't be seen, to keep large Rolls smooth.
     const shadowSize = Math.min(window.screen.width, window.screen.height) < 700 ? 1024 : 2048;
     sun.shadow.mapSize.set(shadowSize, shadowSize);
@@ -160,26 +172,26 @@ export class Renderer {
     const { width, depth, wallHeight } = this.tray;
     const thickness = WALL_THICKNESS;
 
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshStandardMaterial({ color: "#2f6b4f", roughness: 0.95 }),
-    );
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), feltMaterial());
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    const wood = new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: 0.7 });
-    const wall = (w: number, d: number, x: number, z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, wallHeight, d), wood);
+    const wood = woodMaterial();
+    /** A wall `length` long centred on (x, z), running along X, or along Z if `turned`. */
+    const wall = (length: number, x: number, z: number, turned = false) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, wallHeight, thickness), wood);
       mesh.position.set(x, wallHeight / 2, z);
+      // Turned rather than built the other way round, so the grain runs along every wall.
+      if (turned) mesh.rotation.y = Math.PI / 2;
       mesh.castShadow = mesh.receiveShadow = true;
       this.scene.add(mesh);
     };
     const outer = width + 2 * thickness;
-    wall(thickness, depth, width / 2 + thickness / 2, 0);
-    wall(thickness, depth, -width / 2 - thickness / 2, 0);
-    wall(outer, thickness, 0, depth / 2 + thickness / 2);
-    wall(outer, thickness, 0, -depth / 2 - thickness / 2);
+    wall(depth, width / 2 + thickness / 2, 0, true);
+    wall(depth, -width / 2 - thickness / 2, 0, true);
+    wall(outer, 0, depth / 2 + thickness / 2);
+    wall(outer, 0, -depth / 2 - thickness / 2);
   }
 }
 
