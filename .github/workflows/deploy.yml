@@ -1,5 +1,8 @@
-name: Deploy to GitHub Pages
+name: Deploy to 3d20.app
 
+# Every push to `main` tests the app and deploys the `production` SST stage
+# (ADR 0002). The AWS role trusts only workflows on `main` of this repo, so
+# dispatching this from any other branch fails at "Assume the deploy role".
 on:
   push:
     branches: [main]
@@ -7,36 +10,30 @@ on:
 
 permissions:
   contents: read
-  pages: write
   id-token: write
 
 concurrency:
-  group: pages
+  group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    # No `environment:` here: a job in an environment gets the OIDC subject
+    # `...:environment:<name>`, which the role's `ref:refs/heads/main` trust
+    # would reject.
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-1
+      - run: npx sst deploy --stage production
+      - run: npm run smoke
