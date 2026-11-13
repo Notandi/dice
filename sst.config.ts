@@ -2,9 +2,22 @@
 
 // Hosting for https://3d20.app (ADR 0002). Only the `production` stage
 // gets the domain; local development stays plain `npm run dev`.
+const PRODUCTION_STAGE = "production";
+
+// The OIDC subject GitHub issues to workflows on `main` of Notandi/dice. The
+// repo uses GitHub's immutable subject format (owner and repo IDs next to
+// their names; see `gh api repos/Notandi/dice/actions/oidc/customization/sub`),
+// so a renamed or recreated repo with the same name can't assume the role.
+const GITHUB_MAIN_SUBJECT =
+  "repo:Notandi@14007361/dice@1447579793:ref:refs/heads/main";
+
+// AWS-managed "Managed-SecurityHeadersPolicy": HSTS, nosniff, frame options
+// and referrer policy. It sets no CSP, so the WebAssembly physics still loads.
+const SECURITY_HEADERS_POLICY_ID = "67f7725c-6f97-4210-82d7-5512b31e9d03";
+
 export default $config({
   app(input) {
-    const production = input?.stage === "production";
+    const production = input?.stage === PRODUCTION_STAGE;
     return {
       name: "dice",
       home: "aws",
@@ -16,7 +29,7 @@ export default $config({
     };
   },
   async run() {
-    const production = $app.stage === "production";
+    const production = $app.stage === PRODUCTION_STAGE;
 
     // Applies to the site's distribution and to the one SST creates for the
     // www redirect. SST sets redirect-to-https and A + AAAA alias records,
@@ -76,14 +89,3 @@ export default $config({
     return { url: site.url, deployRoleArn: deployRole.arn };
   },
 });
-
-// The OIDC subject GitHub issues to workflows on `main` of Notandi/dice. The
-// repo uses GitHub's immutable subject format (owner and repo IDs next to
-// their names; see `gh api repos/Notandi/dice/actions/oidc/customization/sub`),
-// so a renamed or recreated repo with the same name can't assume the role.
-const GITHUB_MAIN_SUBJECT =
-  "repo:Notandi@14007361/dice@1447579793:ref:refs/heads/main";
-
-// AWS-managed "Managed-SecurityHeadersPolicy": HSTS, nosniff, frame options
-// and referrer policy. It sets no CSP, so the WebAssembly physics still loads.
-const SECURITY_HEADERS_POLICY_ID = "67f7725c-6f97-4210-82d7-5512b31e9d03";
