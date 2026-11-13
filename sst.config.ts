@@ -50,6 +50,22 @@ export default $config({
         command: "npm run build",
         output: "dist",
       },
+      // SST's defaults, plus a one-day cache for the icons and manifest:
+      // unlike the hashed bundles their names never change, so a year-long
+      // immutable cache would pin a stale favicon. Later entries win.
+      assets: {
+        fileOptions: [
+          { files: "**", cacheControl: "max-age=31536000,public,immutable" },
+          {
+            files: "**/*.html",
+            cacheControl: "max-age=0,no-cache,no-store,must-revalidate",
+          },
+          {
+            files: ["*.ico", "*.svg", "*.png", "*.webmanifest"],
+            cacheControl: "max-age=86400,public",
+          },
+        ],
+      },
       domain: production
         ? { name: "3d20.app", redirects: ["www.3d20.app"] }
         : undefined,
